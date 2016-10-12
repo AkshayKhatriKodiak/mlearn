@@ -5,16 +5,19 @@
 # Street View
 #
 # Usage:
-# StreetViewCollect.py <lower> <upper> <left> <right> <max>
+# StreetViewCollect.py <lower> <upper> <left> <right> <max> <destDir> <start>
 # where
 # lower, upper, left, right - rectangle of interest, in lattitude / longtitude
 # coordinates
 # max - maximum number of files that will be downloaded, <= 100000
+# destDir - destination directory
+# start - starting file number
 #
 # Files are downloaded as 00001.jpg, 00002.jpg, etc
 
 import sys
 import os
+import random
 from Queue import Queue
 import tempfile
 
@@ -22,7 +25,7 @@ from UrlRead import urlRead
 from StreetViewXMLParse import streetViewXmlParse
 from utils import UtilWrapper, UtilStitchImagesHor
 
-GRID_SIZE = 0.0005  # In degrees
+GRID_SIZE = 0.0002  # In degrees
 MIN_RECT = (2 * GRID_SIZE)
 MAX_RECT = 3.0
 
@@ -40,20 +43,27 @@ f2.close()
 print("Temp files %s and %s" % (tempFileName1, tempFileName2))
 
 def graceExit():
-    os.remove(tempFileName1)
-    os.remove(tempFileName2)
+    try:
+        os.remove(tempFileName1)
+    except:
+        pass
+    try:
+        os.remove(tempFileName2)
+    except:
+        pass
     sys.exit()
 
 def usage():
     print "USAGE:"
     print """
-StreetViewCollect.py <lower> <upper> <left> <right> <max> <destDir>
+StreetViewCollect.py <lower> <upper> <left> <right> <max> <destDir> <start>
 where
 lower, upper, left, right - rectangle of interest, in lattitude / longtitude
 coordinates. Length and height of this rectangle should be no more than
 %f degrees each, and more that %f degrees.
 max - maximum number of files that will be downloaded, <= 100000
 destDir - destination directory for JPEG files; must exist
+start - starting file number
 """ % (MAX_RECT, MIN_RECT)
     graceExit()
 
@@ -63,6 +73,8 @@ upper = None
 left = None
 right = None
 maxCount = None
+destDir = None
+fileCount = 0
 grid = []
 
 def gridElem(x, y):
@@ -74,7 +86,7 @@ def gridElem(x, y):
     return obj
 
 
-if len(sys.argv) != 7:
+if len(sys.argv) != 8:
     usage()
 
 try:
@@ -90,6 +102,7 @@ try:
 
     maxCount = int(sys.argv[5])
     destDir = sys.argv[6]
+    fileCount = int(sys.argv[7])
 
     if (right - left > MAX_RECT) or (upper - lower > MAX_RECT) or \
             (right - left < MIN_RECT) or (upper - lower < MIN_RECT):
@@ -116,19 +129,21 @@ for i in range(horCells * vertCells):
 
 queue = Queue(0)
 
-urlStr = XML_URL_BASE + "&ll=" + \
-         str((upper + lower) / 2) + "," + str((left + right) / 2)
-print("First URL: %s\n" % urlStr)
-xml = urlRead(urlStr)
-if not xml:
-    graceExit()
-tup = streetViewXmlParse(xml)
-if not tup:
-    graceExit()
-queue.put(tup.pano_id)
+while True:
+    rx = random.uniform(left, right)
+    ry = random.uniform(lower, upper)
+    urlStr = XML_URL_BASE + "&ll=" + str(ry) + "," + str(rx)
+    print("First URL: %s\n" % urlStr)
+    xml = urlRead(urlStr)
+    if not xml:
+        continue
+    tup = streetViewXmlParse(xml)
+    if not tup:
+        continue
+    queue.put(tup.pano_id)
+    break
 
 seenPanoIds = set()
-fileCount = 0
 
 while not queue.empty():
     if fileCount >= maxCount:
@@ -139,7 +154,7 @@ while not queue.empty():
     urlStr = XML_URL_BASE + "&panoid=" + panoid
     xml = urlRead(urlStr)
     if not xml:
-        graceExit()
+        continue        
     tup = streetViewXmlParse(xml)
     if not tup:
         continue
@@ -172,7 +187,7 @@ while not queue.empty():
         if (urlRead(urlStr1, tempFileName1) is None) or \
             (urlRead(urlStr2, tempFileName2) is None):
             print("File read failed\n")
-            graceExit()
+            continue
         UtilStitchImagesHor([tempFileName1, tempFileName2], fileName)
         fileCount += 1
 

@@ -8,5 +8,5 @@ fi
 
 echo $PYTHONPATH
 
-./StreetViewCollect.py 37.276472 37.32647 -121.843538 -121.893538 10 files
+./StreetViewCollect.py 37.276472 37.32647 -121.843538 -121.893538 20 files 0
 
