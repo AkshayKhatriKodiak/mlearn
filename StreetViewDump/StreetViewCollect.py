@@ -23,7 +23,8 @@ import tempfile
 
 from UrlRead import urlRead
 from StreetViewXMLParse import streetViewXmlParse
-from utils import UtilWrapper, UtilStitchImagesHor
+from shared.pyutils.utils import UtilWrapper
+from shared.pyutils.imageutils import UtilStitchImagesHor
 
 GRID_SIZE = 0.0002  # In degrees
 MIN_RECT = (2 * GRID_SIZE)
