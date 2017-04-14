@@ -45,8 +45,6 @@ def UtilAugmReverseMapping(arrMap):
     # Create arrays of indices
 
 
-
-
 def justatemp(name, blur):
     pybgimg=Image.open("/home/morel/temp/komnata.jpg")
     pyfgimg=Image.open("/home/morel/temp/" + name + ".jpg")
