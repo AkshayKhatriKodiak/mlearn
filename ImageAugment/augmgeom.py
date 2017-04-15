@@ -23,7 +23,7 @@ def UtilAugmCircleMapping(boundRect,center,height,width):
             r = math.sqrt(x*x + y*y)
             phi = math.asin(y / r)
             # Translate from polar to original coordinates
-            y = math.tan(phi) * (center + xMax) * objHeight / yMax + yMax
+            y = phi * (center + xMidline) + yMax
             x = r - center
             arr[j][i] = np.array([y,x])
     return arr
@@ -33,16 +33,56 @@ def UtilAugmReverseMapping(arrMap):
     """
     Maps original pixells into the new ones
     :param arrMap: mapping of the new pixels into teh original ones
-    :return: matrix of tuples (yReverseMapped, xreverseMapped)
+    :return: matrix of [yReverseMapped, xreverseMapped]
     """
     height, width, coordCount = arrMap.shape
     assert coordCount == 2
-    yValues, xValues = (np.array(a, dtype=np.float32) for a in \
-        np.unravel_index(range(height * width), (height, width)))
-    arrMapValues = np.reshape(arrMap, (height * width, 2))
-    fy = interpolate.interp2d(arrMapValues[:,0], arrMapValues[:,1], yValues, fill_value=-1.)
-    fx = interpolate.interp2d(arrMapValues[:,0], arrMapValues[:,1], xValues, fill_value=-1.)
-    # Create arrays of indices
+    tupleArr = np.empty((height, width), dtype = object)
+    tupleArr.fill(None)
+    def validInd(tup):
+        return ((0 <= tup[0] < height) and (0 <= tup[1] < width))
+    def addToSet(tup, s):
+        if validInd(tup) and (tupleArr[tup] is None):
+            s.add(tup)
+
+    # Initialize tuple array
+    filled = set()
+    for j in range(height):
+        for i in range(width):
+            y,x = (arrMap[j,i] + 0.5).astype(np.int)
+            if validInd((y,x)):
+                tupleArr[y,x] = (j,i)
+                filled.add((y,x))
+
+    print("Rev map: initially filled %d out of %d" % (len(filled), height * width))
+
+    while len(filled) != 0:
+        s = set()
+        for j,i in filled:
+            for jj in (-1,1):
+                for ii in (-1,1):
+                    addToSet((j+jj, i+ii), s)
+
+        filled = set()
+        for j,i in s:
+            assert tupleArr[j,i] is None
+            l = []
+            for jj in (-1, 1):
+                for ii in (-1, 1):
+                    tup = (j+jj, i+ii)
+                    if validInd(tup) and (tupleArr[tup] is not None):
+                        l.append(tupleArr[tup])
+            y = sum([v[0] for v in l]) / len(l)
+            x = sum([v[1] for v in l]) / len(l)
+            y = int(y + 0.5)
+            x = int(x + 0.5)
+            tupleArr[j,i] = (y,x)
+            filled.add((j,i))
+
+    assert not np.any(np.vectorize(lambda x: x is None)(tupleArr))
+
+    # Covert array of tuples to np array
+    return np.dstack([np.vectorize(operator.itemgetter(i))(tupleArr) for i in (0,1)])
 
 
 def justatemp(name, blur):
