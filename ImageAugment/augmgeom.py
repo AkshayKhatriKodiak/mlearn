@@ -1,4 +1,3 @@
-#TODO: temporary stuff
 from shared.pyutils.imageutils import *
 
 
@@ -26,6 +25,26 @@ def UtilAugmCircleMapping(boundRect,center,height,width):
             y = phi * (center + xMidline) + yMax
             x = r - center
             arr[j][i] = np.array([y,x])
+    return arr
+
+def UtilAugmRandomAxisScale(size):
+    sigma = size / 30.
+    arr = np.random.randn(size)
+    arr = scipyFilters.gaussian_filter1d(arr, sigma) * math.sqrt(sigma) * 1.5
+    arr = np.exp(arr)
+    arr = arr / np.sum(arr) * size
+    for i in range(1,size):
+        # Integrate it
+        arr[i] += arr[i-1]
+    return arr
+
+def UtilAugmRandomIndepAxes(height,width):
+    arrY = UtilAugmRandomAxisScale(height)
+    arrX = UtilAugmRandomAxisScale(width)
+    arr = np.empty((height, width, 2), dtype = np.float32)
+    for j in range(height):
+        for i in range(width):
+            arr[j,i,:] = np.array([arrY[j], arrX[i]])
     return arr
 
 
