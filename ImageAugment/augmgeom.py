@@ -73,7 +73,7 @@ def UtilAugmReverseMapping(arrMap):
                 tupleArr[y,x] = (j,i)
                 filled.add((y,x))
 
-    print("Rev map: initially filled %d out of %d" % (len(filled), height * width))
+    #print("Rev map: initially filled %d out of %d" % (len(filled), height * width))
 
     while len(filled) != 0:
         s = set()
