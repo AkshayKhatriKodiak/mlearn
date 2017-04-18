@@ -1,7 +1,7 @@
 from shared.pyutils.imageutils import *
 
 
-def UtilAugmCircleMapping(boundRect,center,height,width):
+def UtilAugmCircleMappingLeft(boundRect,center,height,width):
     """
     Map image in a circullar manner
     :param boundRect: bounding box of the image object, float 4-tuple
@@ -27,25 +27,51 @@ def UtilAugmCircleMapping(boundRect,center,height,width):
             arr[j][i] = np.array([y,x])
     return arr
 
-def UtilAugmRandomAxisScale(size):
-    sigma = size / 30.
-    arr = np.random.randn(size)
-    arr = scipyFilters.gaussian_filter1d(arr, sigma) * math.sqrt(sigma) * 1.5
-    arr = np.exp(arr)
-    arr = arr / np.sum(arr) * size
-    for i in range(1,size):
-        # Integrate it
-        arr[i] += arr[i-1]
-    return arr
+def UtilAugmCircleMappingRight(boundRect,center,height,width):
+    arr = UtilAugmCircleMappingLeft(boundRect,center,height,width)
+    return np.flip(arr, axis=0)
 
-def UtilAugmRandomIndepAxes(height,width):
-    arrY = UtilAugmRandomAxisScale(height)
-    arrX = UtilAugmRandomAxisScale(width)
+def UtilAugmRandomAxisScale(size, freqCtrl=30., depthCtrl = 1.5):
+    sigma = size / freqCtrl
+    arr = np.random.randn(size)
+    return scipyFilters.gaussian_filter1d(arr, sigma) * math.sqrt(sigma) * depthCtrl
+
+def UtilAugmDblSinAxisScale(size, freqCtrl=4., depthCtrl = 1.):
+    ampl1 = np.random.rand() * depthCtrl
+    ampl2 = np.random.rand() * depthCtrl
+    freq1 = np.random.rand() * freqCtrl
+    freq2 = np.random.rand() * freqCtrl
+    f = np.vectorize(lambda x: ampl1*math.sin(freq1*x) + ampl2*math.sin(freq2*x))
+    return f(np.array(range(size)))
+
+def UtilAugmIndepAxes(height, width, axisFunc, **kwargs):
+    def convert(arr):
+        size = len(arr)
+        arr = np.exp(arr)
+        arr = arr / np.sum(arr) * size
+        for i in range(1, size):
+            # Integrate it
+            arr[i] += arr[i - 1]
+        return arr
+    arrY = convert(axisFunc(height, **kwargs))
+    arrX = convert(axisFunc(width, **kwargs))
     arr = np.empty((height, width, 2), dtype = np.float32)
     for j in range(height):
         for i in range(width):
             arr[j,i,:] = np.array([arrY[j], arrX[i]])
     return arr
+
+def UtilAugmSimmetry1d(height, width, midCoord, isVertical, freqCtrl=4., depthCtrl=0.2):
+    if not isVertical:
+        height, width = (width, height)
+    arr = UtilAugmDblSinAxisScale(height, freqCtrl, depthCtrl) + 1.
+    output = np.empty((height, width, 2), dtype = np.float32)
+    for j in range(height):
+        scaledX = (np.array(range(width), dtype=np.float32) - midCoord) * arr + midCoord
+        output[j,:] = np.transpose([np.repeat(j), scaledX])
+    if not isVertical:
+        output = np.rot90(output, k=3)
+    return output
 
 
 def UtilAugmReverseMapping(arrMap):
@@ -116,13 +142,13 @@ def justatemp(name, blur):
     arrMap = UtilAugmentCircleMapping(boundRect,500.,h,w)
     pyfgimg = UtilRemapImage(pyfgimg, arrMap)
     maskImg = UtilRemapImage(maskImg, arrMap)
-    pyfgimg.save("/home/morel/temp/haha1.bmp")
-    maskImg.save("/home/morel/temp/haha1mask.bmp")
+    UtilArrayToImageFile(pyfgimg, "/home/morel/temp/haha1.bmp")
+    UtilArrayToImageFile(maskImg, "/home/morel/temp/haha1mask.bmp")
     pybgimg=pybgimg.resize((480, 640), resample=Image.BICUBIC)
     print ("Equalizing")
     pybgimg = UtilImageEqualizeBrightness(pybgimg, pyfgimg, 10.)
     print ("Finished equalizing")
-    pybgimg.save("/home/morel/temp/komnata3.bmp")
+    UtilArrayToImageFile(pybgimg, "/home/morel/temp/komnata3.bmp")
     cvbgimg=CVImage(pybgimg)
     cvfgimg=CVImage(pyfgimg)
     kernel = 0.0
@@ -155,7 +181,7 @@ def justatemp(name, blur):
     mask = imgan.setTransparencyMask("/home/morel/temp/haha1mask.bmp", binarizeThreshold=128)
     pyimgpaste=imgan.save("/home/morel/temp/haha1.png")
     img = UtilImageSimpleBlend(pybgimg, pyimgpaste)
-    img.save("/home/morel/temp/komnata4.bmp")
+    UtilArrayToImageFile(img, "/home/morel/temp/komnata4.bmp")
 
 #JUSTATEMP
 if 0:
@@ -176,11 +202,11 @@ if 0:
     imgan.transpImage.save("/home/morel/temp/haha1.bmp")
     pyimgpaste=imgan.save("/home/morel/temp/haha1.png")
     img = UtilImageSimpleBlend(pybgimg, pyimgpaste)
-    img.save("/home/morel/temp/komnata1.bmp")
+    UtilArrayToImageFile(img, "/home/morel/temp/komnata1.bmp")
     sys.exit(0)
     bgimgcv=CVImage(pybgimg)
     pyedge=bgimgcv.edge()
-    pyedge.save("/home/morel/temp/edge.bmp")
+    UtilArrayToImageFile(pyedge, "/home/morel/temp/edge.bmp")
     sys.exit(0)
     img=CVImage(pyimg)
     #img.gaussian(0.5)
