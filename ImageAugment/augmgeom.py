@@ -39,9 +39,9 @@ def UtilAugmRandomAxisScale(size, freqCtrl=30., depthCtrl = 1.5):
 def UtilAugmDblSinAxisScale(size, freqCtrl=4., depthCtrl = 1.):
     ampl1 = np.random.rand() * depthCtrl
     ampl2 = np.random.rand() * depthCtrl
-    freq1 = np.random.rand() * freqCtrl
-    freq2 = np.random.rand() * freqCtrl
-    f = np.vectorize(lambda x: ampl1*math.sin(freq1*x) + ampl2*math.sin(freq2*x))
+    freq1 = np.random.rand() * freqCtrl * np.pi
+    freq2 = np.random.rand() * freqCtrl * np.pi
+    f = np.vectorize(lambda x: ampl1*math.sin(freq1*x/size) + ampl2*math.sin(freq2*x/size))
     return f(np.array(range(size)))
 
 def UtilAugmIndepAxes(height, width, axisFunc, **kwargs):
@@ -61,18 +61,35 @@ def UtilAugmIndepAxes(height, width, axisFunc, **kwargs):
             arr[j,i,:] = np.array([arrY[j], arrX[i]])
     return arr
 
-def UtilAugmSimmetry1d(height, width, midCoord, isVertical, freqCtrl=4., depthCtrl=0.2):
+def UtilAugmSimmetry1d(height, width, midCoord, isVertical, freqCtrl=4., depthCtrl=0.1, minScale=0.7, maxScale=1.4):
     if not isVertical:
         height, width = (width, height)
-    arr = UtilAugmDblSinAxisScale(height, freqCtrl, depthCtrl) + 1.
+    counter = 20
+    while counter:
+        arr = UtilAugmDblSinAxisScale(height, freqCtrl, depthCtrl) + 1.
+        if (np.min(arr) > minScale) and (np.max(arr) < maxScale):
+            break
+        counter -= 1
+    if counter == 0:
+        return None
     output = np.empty((height, width, 2), dtype = np.float32)
+    scaledX = (np.array(range(width), dtype=np.float32) - midCoord) * arr + midCoord
     for j in range(height):
-        scaledX = (np.array(range(width), dtype=np.float32) - midCoord) * arr + midCoord
         output[j,:] = np.transpose([np.repeat(j), scaledX])
     if not isVertical:
         output = np.rot90(output, k=3)
     return output
 
+def UtilAugmStretch1d(height, width, ratio, midCoord, isVertical):
+    if not isVertical:
+        height, width = (width, height)
+    output = np.empty((height, width, 2), dtype=np.float32)
+    for j in height:
+        output[j,:] = np.transpose([np.repeat((j - midCoord) / ratio + midCoord), \
+                                    np.array(range(width), dtype=np.float32)])
+    if not isVertical:
+        output = np.rot90(output, k=3)
+    return output
 
 def UtilAugmReverseMapping(arrMap):
     """
