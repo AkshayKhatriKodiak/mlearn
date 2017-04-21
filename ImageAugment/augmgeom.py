@@ -1,4 +1,9 @@
 from shared.pyutils.imageutils import *
+import scipy
+
+scipyVerMaj, scipyVerMin, _ = scipy.__version__.split(".")
+if (int(scipyVerMaj) == 0) and (int(scipyVerMin) < 14):
+    raise Exception("SCIPY version %s, should be at least 0.14.0" % scipy.__version__)
 
 
 def UtilAugmCircleMappingLeft(boundRect,center,height,width):
@@ -29,7 +34,7 @@ def UtilAugmCircleMappingLeft(boundRect,center,height,width):
 
 def UtilAugmCircleMappingRight(boundRect,center,height,width):
     arr = UtilAugmCircleMappingLeft(boundRect,center,height,width)
-    return np.flip(arr, axis=0)
+    return np.flip(arr, axis=1)
 
 def UtilAugmRandomAxisScale(size, freqCtrl=30., depthCtrl = 1.5):
     sigma = size / freqCtrl
@@ -37,11 +42,13 @@ def UtilAugmRandomAxisScale(size, freqCtrl=30., depthCtrl = 1.5):
     return scipyFilters.gaussian_filter1d(arr, sigma) * math.sqrt(sigma) * depthCtrl
 
 def UtilAugmDblSinAxisScale(size, freqCtrl=4., depthCtrl = 1.):
-    ampl1 = np.random.rand() * depthCtrl
-    ampl2 = np.random.rand() * depthCtrl
-    freq1 = np.random.rand() * freqCtrl * np.pi
-    freq2 = np.random.rand() * freqCtrl * np.pi
-    f = np.vectorize(lambda x: ampl1*math.sin(freq1*x/size) + ampl2*math.sin(freq2*x/size))
+    ampl1 = np.random.randn() * depthCtrl
+    ampl2 = np.random.randn() * depthCtrl
+    freq1 = np.random.randn() * freqCtrl * np.pi
+    freq2 = np.random.randn() * freqCtrl * np.pi
+    phase1 = np.random.rand() * 2 * np.pi
+    phase2 = np.random.rand() * 2 * np.pi
+    f = np.vectorize(lambda x: ampl1*math.sin(freq1*x/size + phase1) + ampl2*math.sin(freq2*x/size + phase2))
     return f(np.array(range(size)))
 
 def UtilAugmIndepAxes(height, width, axisFunc, **kwargs):
@@ -72,23 +79,23 @@ def UtilAugmSimmetry1d(height, width, midCoord, isVertical, freqCtrl=4., depthCt
         counter -= 1
     if counter == 0:
         return None
-    output = np.empty((height, width, 2), dtype = np.float32)
-    scaledX = (np.array(range(width), dtype=np.float32) - midCoord) * arr + midCoord
-    for j in range(height):
-        output[j,:] = np.transpose([np.repeat(j), scaledX])
+    scaledX = np.outer(arr, np.array(range(width), dtype=np.float32) - midCoord) + midCoord
+    assert scaledX.shape == (height, width)
+    unscaledY = np.repeat(np.array(range(height)), width).reshape((height, width))
+    output = np.dstack([unscaledY, scaledX]).astype(np.float32)
     if not isVertical:
-        output = np.rot90(output, k=3)
+        output = np.flip(np.flip(np.rot90(output, axes=(0,1)), axis=2), axis=0)
     return output
 
 def UtilAugmStretch1d(height, width, ratio, midCoord, isVertical):
     if not isVertical:
         height, width = (width, height)
     output = np.empty((height, width, 2), dtype=np.float32)
-    for j in height:
-        output[j,:] = np.transpose([np.repeat((j - midCoord) / ratio + midCoord), \
+    for j in range(height):
+        output[j,:] = np.transpose([np.repeat((j - midCoord) / ratio + midCoord, width), \
                                     np.array(range(width), dtype=np.float32)])
     if not isVertical:
-        output = np.rot90(output, k=3)
+        output = np.flip(np.flip(np.rot90(output, axes=(0,1)), axis=2), axis=0)
     return output
 
 def UtilAugmReverseMapping(arrMap):
@@ -229,3 +236,4 @@ if 0:
     #img.gaussian(0.5)
     #img.image(imageName="/home/morel/temp/haha1.jpg")
     img.edge()
+
