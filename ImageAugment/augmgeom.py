@@ -1,9 +1,4 @@
 from shared.pyutils.imageutils import *
-import scipy
-
-scipyVerMaj, scipyVerMin, _ = scipy.__version__.split(".")
-if (int(scipyVerMaj) == 0) and (int(scipyVerMin) < 14):
-    raise Exception("SCIPY version %s, should be at least 0.14.0" % scipy.__version__)
 
 
 def UtilAugmCircleMappingLeft(boundRect,center,height,width):
@@ -236,4 +231,5 @@ if 0:
     #img.gaussian(0.5)
     #img.image(imageName="/home/morel/temp/haha1.jpg")
     img.edge()
+
 
