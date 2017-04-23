@@ -1,5 +1,6 @@
 from shared.pyutils.imageutils import *
 
+AllowedBinaryMaskExt = [".png", ".bmp"]
 
 def UtilAugmCircleMappingLeft(boundRect,center,height,width):
     """
@@ -147,6 +148,29 @@ def UtilAugmReverseMapping(arrMap):
 
     # Covert array of tuples to np array
     return np.dstack([np.vectorize(operator.itemgetter(i))(tupleArr) for i in (0,1)])
+
+def UtilAdjustBinaryMask(img):
+    if len(img.shape) == 3:
+        img = UtilFromRgbToGray(img)
+    boolImg = img >= 128
+    return np.where(boolImg, 255, 0).astype(np.uint8)
+
+def UtilSaveBinaryMask(img, fileName):
+    assert os.path.splitext(fileName)[1].lower() in AllowedBinaryMaskExt
+    img = UtilAdjustBinaryMask(img)
+    UtilArrayToImageFile(img, fileName)
+
+def UtilLoadBinaryMask(fileName):
+    assert os.path.splitext(fileName)[1].lower() in AllowedBinaryMaskExt
+    img = UtilImageFileToArray(fileName)
+    return UtilAdjustBinaryMask(img)
+
+def UtilRemapBinaryMask(imgMask, map):
+    """
+    For a binary mask we should remove all splining
+    """
+    imgMask = UtilRemapImage(imgMask, map, fillValue = 127., ky=1, kx=1)
+    return UtilAdjustBinaryMask(imgMask)
 
 
 def justatemp(name, blur):
