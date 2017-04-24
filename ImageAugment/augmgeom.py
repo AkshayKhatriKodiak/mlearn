@@ -1,3 +1,5 @@
+__author__ = "Misha Orel"
+
 from shared.pyutils.imageutils import *
 
 AllowedBinaryMaskExt = [".png", ".bmp"]
@@ -153,7 +155,7 @@ def UtilAdjustBinaryMask(img):
     if len(img.shape) == 3:
         img = UtilFromRgbToGray(img)
     boolImg = img >= 128
-    return np.where(boolImg, 255, 0).astype(np.uint8)
+    return np.where(boolImg, 255., 0.)
 
 def UtilSaveBinaryMask(img, fileName):
     assert os.path.splitext(fileName)[1].lower() in AllowedBinaryMaskExt
@@ -171,89 +173,3 @@ def UtilRemapBinaryMask(imgMask, map):
     """
     imgMask = UtilRemapImage(imgMask, map, fillValue = 127., ky=1, kx=1)
     return UtilAdjustBinaryMask(imgMask)
-
-
-def justatemp(name, blur):
-    pybgimg=Image.open("/home/morel/temp/komnata.jpg")
-    pyfgimg=Image.open("/home/morel/temp/" + name + ".jpg")
-    maskImg = Image.open("/home/morel/temp/" + name + ".png")
-    maskImg = maskImg.convert(mode = "L")
-    maskImgBin = maskImg.point(lambda p: p > 128 and 255)
-    boundRect = UtilBoundingRectFromMask(maskImgBin)
-    print ("boundRect %s" % str(boundRect))
-    w,h=pyfgimg.size
-    arrMap = UtilAugmentCircleMapping(boundRect,500.,h,w)
-    pyfgimg = UtilRemapImage(pyfgimg, arrMap)
-    maskImg = UtilRemapImage(maskImg, arrMap)
-    UtilArrayToImageFile(pyfgimg, "/home/morel/temp/haha1.bmp")
-    UtilArrayToImageFile(maskImg, "/home/morel/temp/haha1mask.bmp")
-    pybgimg=pybgimg.resize((480, 640), resample=Image.BICUBIC)
-    print ("Equalizing")
-    pybgimg = UtilImageEqualizeBrightness(pybgimg, pyfgimg, 10.)
-    print ("Finished equalizing")
-    UtilArrayToImageFile(pybgimg, "/home/morel/temp/komnata3.bmp")
-    cvbgimg=CVImage(pybgimg)
-    cvfgimg=CVImage(pyfgimg)
-    kernel = 0.0
-    cvbgimg.gaussian(blur)
-    while False: #JUSTATEMP
-        kernel += 0.1
-        cvbgimg.edge()
-        cvfgimg.edge()
-        print ("before %f %f" % (cvbgimg.meanSharpness(), cvfgimg.meanSharpness()))
-        diffSharp =  cvbgimg.meanSharpness() - cvfgimg.meanSharpness()
-        cvbgimgSharp = CVImage(cvbgimg)
-        cvfgimgSharp = CVImage(cvfgimg)
-        if diffSharp < 0.:
-            cvfgimgSharp.gaussian(kernel)
-        else:
-            cvbgimgSharp.gaussian(kernel)
-        cvfgimgSharp.edge()
-        cvbgimgSharp.edge()
-        print ("after %f %f %f" % (kernel, cvbgimgSharp.meanSharpness(), cvfgimgSharp.meanSharpness()))
-        newDiffSharp = cvbgimgSharp.meanSharpness() - cvfgimgSharp.meanSharpness()
-        if newDiffSharp * diffSharp <= 0.:
-            break
-    #cvbgimg = CVImage(cvbgimgSharp)
-    #cvfgimg = CVImage(cvfgimgSharp)
-    cvbgimg.edge()
-    cvfgimg.edge()
-    print ("%f %f" % (cvbgimg.meanSharpness(), cvfgimg.meanSharpness()))
-    pybgimg = cvbgimg.image("/home/morel/temp/komnata2.bmp")
-    imgan=ImageAnnot(pyfgimg)
-    mask = imgan.setTransparencyMask("/home/morel/temp/haha1mask.bmp", binarizeThreshold=128)
-    pyimgpaste=imgan.save("/home/morel/temp/haha1.png")
-    img = UtilImageSimpleBlend(pybgimg, pyimgpaste)
-    UtilArrayToImageFile(img, "/home/morel/temp/komnata4.bmp")
-
-#JUSTATEMP
-if 0:
-    #justatemp("hehe", 0.8)
-    #justatemp("uhuh", 0.9)
-    #justatemp("haha", 0.7)
-    justatemp("huhu", 0.3)
-    sys.exit(0)
-
-    #cvbgimg.gaussian(0.5)
-    cvbgimg.edge()
-    pybgimg=Image.open("/home/morel/temp/komnata3.bmp")
-    pybgimg=pybgimg.resize((480, 640), resample=Image.BICUBIC)
-    #pybgimg.save("/home/morel/temp/komnata1.jpg")
-    imgan=ImageAnnot(pyfgimg)
-    mask = imgan.setTransparencyMask("/home/morel/temp/haha.png", binarizeThreshold=128)
-    print ("RECT %s" % str(UtilBoundingRectFromMask(mask)))
-    imgan.transpImage.save("/home/morel/temp/haha1.bmp")
-    pyimgpaste=imgan.save("/home/morel/temp/haha1.png")
-    img = UtilImageSimpleBlend(pybgimg, pyimgpaste)
-    UtilArrayToImageFile(img, "/home/morel/temp/komnata1.bmp")
-    sys.exit(0)
-    bgimgcv=CVImage(pybgimg)
-    pyedge=bgimgcv.edge()
-    UtilArrayToImageFile(pyedge, "/home/morel/temp/edge.bmp")
-    sys.exit(0)
-    img=CVImage(pyimg)
-    #img.gaussian(0.5)
-    #img.image(imageName="/home/morel/temp/haha1.jpg")
-    img.edge()
-
-
