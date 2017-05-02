@@ -30,7 +30,7 @@ def UtilBlendForeBackGround(imgFg, imgFgMask, imgBg, yShift=0, xShift=0, blendSi
     xBefPad, xAftPad = padWidth(xShift)
     imgFgShifted = np.pad(imgFg, ((yBefPad, yAftPad), (xBefPad, xAftPad), (0,0)), \
         mode='constant', constant_values=127.)[yAftPad:h+yAftPad, xAftPad:w+xAftPad, :]
-    imgBg = UtilImageEqualizeBrightness(imgBg, imgFgShifted)
+    imgBg = UtilImageEqualizeBrightness(imgBg, imgFgShifted, kernelSize = w // 15)
 
     # Blending
     # TODO: Do it right, at the border
