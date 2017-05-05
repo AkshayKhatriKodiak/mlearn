@@ -88,13 +88,34 @@ def UtilAugmSimmetry1d(height, width, midCoord, isVertical, freqCtrl=4., depthCt
 def UtilAugmStretch1d(height, width, ratio, midCoord, isVertical):
     if not isVertical:
         height, width = (width, height)
-    output = np.empty((height, width, 2), dtype=np.float32)
-    for j in range(height):
-        output[j,:] = np.transpose([np.repeat((j - midCoord) / ratio + midCoord, width), \
-                                    np.array(range(width), dtype=np.float32)])
+    indDiff = UtilCartesianMatrix(range(height), range(width)) - [midCoord, 0.]
+    output = np.stack([indDiff[:,:,0] / ratio + midCoord, indDiff[:,:,1]], axis=2)
     if not isVertical:
         output = np.flip(np.flip(np.rot90(output, axes=(0,1)), axis=2), axis=0)
     return output
+
+def UtilAugmStretch2d(height, width, ratio, centerPoint):
+    yCenter, xCenter = centerPoint
+    indDiff = UtilCartesianMatrix(range(height), range(width)) - [yCenter, xCenter]
+    return indDiff / ratio + [yCenter, xCenter]
+
+def UtilAugmRotate(height, width, angle, centerPoint):
+    yCenter, xCenter = centerPoint
+    indDiff = UtilCartesianMatrix(range(height), range(width)) - [yCenter, xCenter]
+    # Remember, image is upside down by axis Y
+    s,c = (math.sin(angle), math.cos(angle)) # Minus because we go from rotated matrix to the original one
+    indY = indDiff[:,:,0] * c + indDiff[:,:,1] * s
+    indX = indDiff[:,:,1] * c - indDiff[:,:,0] * s
+    return np.stack([indY, indX], axis=2) + [yCenter, xCenter]
+
+
+def UtilAugmIsHorFlip(func):
+    """
+    True if coordinates flipped horisontally
+    :param func:
+    :return:
+    """
+    return func in (UtilAugmCircleMappingRight,)
 
 def UtilAugmReverseMapping(arrMap):
     """
