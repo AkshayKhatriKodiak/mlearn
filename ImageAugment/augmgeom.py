@@ -137,7 +137,7 @@ def UtilAugmReverseMapping(arrMap):
     filled = set()
     for j in range(height):
         for i in range(width):
-            y,x = (arrMap[j,i] + 0.5).astype(np.int)
+            y,x = np.rint(arrMap[j,i]).astype(np.int)
             if validInd((y,x)):
                 tupleArr[y,x] = (j,i)
                 filled.add((y,x))
@@ -162,8 +162,8 @@ def UtilAugmReverseMapping(arrMap):
                         l.append(tupleArr[tup])
             y = sum([v[0] for v in l]) / len(l)
             x = sum([v[1] for v in l]) / len(l)
-            y = int(y + 0.5)
-            x = int(x + 0.5)
+            y = int(round(y))
+            x = int(round(x))
             tupleArr[j,i] = (y,x)
             filled.add((j,i))
 
