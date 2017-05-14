@@ -1,5 +1,6 @@
 __author__ = "Misha Orel"
 
+from shared.pyutils.tensorutils import *
 from shared.pyutils.imageutils import *
 
 AllowedBinaryMaskExt = [".png", ".bmp"]

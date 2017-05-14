@@ -35,9 +35,9 @@ def UtilBlendForeBackGround(imgFg, imgFgMask, imgBg, yShift=0, xShift=0, blendSi
         imgBg = UtilImageEqualizeBrightness(imgBg, imgFgShifted, blendBright=blendBright, kernelSize = w // 10)
 
     # Blending
-    pilImgBg = Image.fromarray(UtilImageToUint8(imgBg), mode="RGB")
-    pilImgFg = Image.fromarray(UtilImageToUint8(imgFg), mode="RGB")
-    pilImgFgMask = Image.fromarray(UtilImageToUint8(imgFgMask), mode="L")
+    pilImgBg = Image.fromarray(UtilImageToInt(imgBg), mode="RGB")
+    pilImgFg = Image.fromarray(UtilImageToInt(imgFg), mode="RGB")
+    pilImgFgMask = Image.fromarray(UtilImageToInt(imgFgMask), mode="L")
     pilImgBg.paste(pilImgFg, (xShift, yShift), mask = pilImgFgMask)
     imgBlend = np.asarray(pilImgBg, dtype=np.float32)
     # TODO: Do it right, at the border
