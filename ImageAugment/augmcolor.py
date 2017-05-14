@@ -65,8 +65,6 @@ def UtilAugmRepaintHLS(img, repaintMap):
     img = cv2.cvtColor(UtilImageToInt(img), cv2.COLOR_BGR2HLS) # BGR because CV2 is using BGR order
     imgIndxsH, imgIndxsL, imgIndxsS = np.transpose(img.reshape(-1,3))
     repaintLS = repaintMapLS[imgIndxsL, imgIndxsS]
-    #JUSTATEMP
-    print('UGU %d' % np.max(imgIndxsH))
     img = np.stack([repaintMapH[imgIndxsH][:,0], repaintLS[:,0], repaintLS[:,1]], axis=1)
     return cv2.cvtColor(img.reshape((h,w,3)), cv2.COLOR_HLS2BGR).astype(np.float32)
 
