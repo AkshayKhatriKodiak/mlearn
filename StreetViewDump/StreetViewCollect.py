@@ -55,17 +55,17 @@ def graceExit():
     sys.exit()
 
 def usage():
-    print "USAGE:"
-    print """
+    print("USAGE:")
+    print("""
 StreetViewCollect.py <lower> <upper> <left> <right> <max> <destDir> <start>
 where
 lower, upper, left, right - rectangle of interest, in lattitude / longtitude
 coordinates. Length and height of this rectangle should be no more than
-%f degrees each, and more that %f degrees.
+%f and %f degrees, correspondingly.
 max - maximum number of files that will be downloaded, <= 100000
 destDir - destination directory for JPEG files; must exist
 start - starting file number
-""" % (MAX_RECT, MIN_RECT)
+""" % (MAX_RECT, MIN_RECT))
     graceExit()
 
 horCells = None
@@ -189,7 +189,7 @@ while not queue.empty():
             (urlRead(urlStr2, tempFileName2) is None):
             print("File read failed\n")
             continue
-        UtilStitchImagesHor([tempFileName1, tempFileName2], fileName)
+        UtilStitchImagesHor([tempFileName1, tempFileName2], outImageName=fileName)
         fileCount += 1
 
 graceExit()
