@@ -33,7 +33,9 @@ def UtilAugmCircleMappingLeft(boundRect,center,height,width):
 
 def UtilAugmCircleMappingRight(boundRect,center,height,width):
     arr = UtilAugmCircleMappingLeft(boundRect,center,height,width)
-    return np.flip(arr, axis=1)
+    refArray = np.tile(range(width), height).reshape((height, width))
+    arr[:,:,1] = 2. * arr[:,:,1] - refArray
+    return arr
 
 def UtilAugmRandomAxisScale(size, freqCtrl=30., depthCtrl = 1.5):
     sigma = size / freqCtrl
@@ -109,14 +111,6 @@ def UtilAugmRotate(height, width, angle, centerPoint):
     indX = indDiff[:,:,1] * c - indDiff[:,:,0] * s
     return np.stack([indY, indX], axis=2) + [yCenter, xCenter]
 
-
-def UtilAugmIsHorFlip(func):
-    """
-    True if coordinates flipped horisontally
-    :param func:
-    :return:
-    """
-    return func in (UtilAugmCircleMappingRight,)
 
 def UtilAugmReverseMapping(arrMap):
     """
