@@ -199,13 +199,17 @@ class BinFileSimpleReader(UtilObject):
     Reads fixed size entries from a file in sequntial order, passes them back to the caller. Has to be reset to start
     from the beginning
     """
-    def __init__(self, fileName, typeShapeList, batchSize):
+    def __init__(self, fileName, typeShapeList, batchSize, batchesAtOnce=1):
+        # batchesAtOnce - the total number of batches must be divisible by this number
         self.fileName = fileName
         self.fileSize = os.path.getsize(fileName)
         self.batchSize = batchSize
         self.typeShapeList = typeShapeList
         entrySize = sum([_calculateEntryItemSize(t) for t in typeShapeList])
-        self.maxCount = self.fileSize // (entrySize * batchSize)
+        self.maxCount = self.fileSize // (entrySize * batchSize) // batchesAtOnce * batchesAtOnce
+        if self.maxCount == 0:
+            raise ValueError('This file size %u cannot be broken in %d chuncks of batches of size %d' % \
+                             (self.fileSize, batchesAtOnce, batchSize))
         self.fd = None
 
     def open(self):
