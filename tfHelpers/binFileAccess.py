@@ -213,6 +213,7 @@ class BinFileSimpleReader(UtilObject):
         self.fd = None
 
     def open(self):
+        self.close()
         self.fd = open(self.fileName, 'rb')
         self.count = 0
 
