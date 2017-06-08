@@ -77,7 +77,6 @@ class BinFileWriter(UtilObject):
 
     def newEntry(self, arrList):
         for arr in arrList:
-            assert arr.flags['C_CONTIGUOUS']
             arr.tofile(self.fd)
 
 
