@@ -222,6 +222,9 @@ class BinFileSimpleReader(UtilObject):
             self.fd.close()
             self.fd = None
 
+    def eof(self):
+        return (self.count >= self.maxCount)
+
     def batch(self):
         if self.count >= self.maxCount:
             self.close()
