@@ -11,6 +11,7 @@ import numpy as np
 from multiprocessing import RawArray, Process, cpu_count
 import psutil
 import functools
+import time
 from shared.pyutils.utils import *
 
 def _calculateEntryItemSize(typeShapeTuple):
@@ -140,11 +141,11 @@ class BinFileParRandReader(UtilObject):
     def __init__(self, fileName, typeShapeList, batchSize, weightsFileName=None, procCount=None, mem=None):
         self.fileSize = os.path.getsize(fileName)
         if procCount is None:
-            procCount = 2 * cpu_count()  # multiply by 2 in case some processes are waiting on fio
+            procCount = cpu_count()
         # Memory - let's grab quarter of available physical memory, but not less than 4GB
         if mem is None:
             fourGig = 0x100000000
-            memorySize = max(psutil.virtual_memory().available // 4, fourGig)
+            memorySize = max(psutil.virtual_memory().available // 8, fourGig)
         else:
             memorySize = mem
         memorySize = min(memorySize, self.fileSize)
