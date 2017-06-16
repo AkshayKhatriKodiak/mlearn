@@ -142,22 +142,31 @@ class BinFileParRandReader(UtilObject):
         self.fileSize = os.path.getsize(fileName)
         if procCount is None:
             procCount = cpu_count()
-        # Memory - let's grab quarter of available physical memory, but not less than 4GB
-        if mem is None:
-            fourGig = 0x100000000
-            memorySize = max(psutil.virtual_memory().available // 8, fourGig)
-        else:
-            memorySize = mem
-        memorySize = min(memorySize, self.fileSize)
-        if memorySize >= psutil.virtual_memory().available:
-            raise MemoryError('Not enough available physical memory to get %u' % memorySize)
 
         self.batchSize = batchSize
         self.typeShapeList = typeShapeList
         self.itemSizes = [_calculateEntryItemSize(t) for t in typeShapeList]
-
         entrySize = sum(self.itemSizes)
-        bufferEntryCount = memorySize // 2 // procCount // entrySize // batchSize * batchSize
+
+        # Let's grab memory
+        fourGig = 0x100000000
+        memorySize = fourGig if mem is None else mem
+        memorySize = min(memorySize, self.fileSize)
+
+        while True:
+            if memorySize >= psutil.virtual_memory().available:
+                raise MemoryError('Not enough available physical memory to get %u' % memorySize)
+            bufferEntryCount = memorySize // 2 // procCount // entrySize // batchSize * batchSize
+            if bufferEntryCount >= 16:
+                break
+            if memorySize >= self.fileSize:
+                if procCount > 1:
+                    procCount //= 2
+                else:
+                    raise IOError('File %s got too few entries' % fileName)
+            else:
+                memorySize *= 2
+
         self.buffers = [BinFileParRandBuffer(fileName, entrySize=entrySize, bufferEntryCount=bufferEntryCount, \
             bufferCount=procCount, weightsFileName=weightsFileName) for _ in (0, 1)]
         self.currentBuffer = 1 # We start with the "other" buffer so we are never fetching 2 buffers at the same time
@@ -192,6 +201,14 @@ class BinFileParRandReader(UtilObject):
             l.append(n)
 
         return l
+
+    def sync(self):
+        """
+        Finish all asynchroneous operations
+        :return:
+        """
+        for b in self.buffers:
+            b.wait()
 
 
 class BinFileSimpleReader(UtilObject):
