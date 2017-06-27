@@ -91,7 +91,7 @@ def UtilAugmSimmetry1d(height, width, midCoord, isVertical, freqCtrl=4., depthCt
 def UtilAugmStretch1d(height, width, ratio, midCoord, isVertical):
     if not isVertical:
         height, width = (width, height)
-    indDiff = UtilCartesianMatrix(range(height), range(width)) - [midCoord, 0.]
+    indDiff = UtilCartesianMatrixDefault(height, width) - [midCoord, 0.]
     output = np.stack([indDiff[:,:,0] / ratio + midCoord, indDiff[:,:,1]], axis=2)
     if not isVertical:
         output = np.flip(np.flip(np.rot90(output, axes=(0,1)), axis=2), axis=0)
@@ -99,12 +99,12 @@ def UtilAugmStretch1d(height, width, ratio, midCoord, isVertical):
 
 def UtilAugmStretch2d(height, width, ratio, centerPoint):
     yCenter, xCenter = centerPoint
-    indDiff = UtilCartesianMatrix(range(height), range(width)) - [yCenter, xCenter]
+    indDiff = UtilCartesianMatrixDefault(height, width) - [yCenter, xCenter]
     return indDiff / ratio + [yCenter, xCenter]
 
 def UtilAugmRotate(height, width, angle, centerPoint):
     yCenter, xCenter = centerPoint
-    indDiff = UtilCartesianMatrix(range(height), range(width)) - [yCenter, xCenter]
+    indDiff = UtilCartesianMatrixDefault(height, width) - [yCenter, xCenter]
     # Remember, image is upside down by axis Y
     s,c = (math.sin(angle), math.cos(angle)) # Minus because we go from rotated matrix to the original one
     indY = indDiff[:,:,0] * c + indDiff[:,:,1] * s

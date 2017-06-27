@@ -15,13 +15,13 @@ def UtilAugmRandomRepaintRGBMap(strength = 10., order = 2, independentAxes=False
         strength = tuple([strength] * 3)
     map = np.stack([UtilRandomSinFunc((256, 256, 256), order=order, expectedStd=strength[i], \
                                       independentAxes=independentAxes) for i in range(3)], axis=3)
-    map += UtilCartesianMatrix3d(range(256), range(256), range(256))
+    map += UtilCartesianMatrixDefault(256, 256, 256)
     map = UtilReflectCoordTensor(map)
     return np.rint(map).astype(np.int).clip(min=0, max=255).astype(np.uint8)
 
 def UtilAugmRandomRepaintHLSMap(strengthLS=10., strengthH=10., orderLS = 2, orderH=1, independentAxes=False):
     """
-    Creates a repainting map of 180x256x256x3
+    Creates 2 repainting map of 256x256x2 (LS) and 181x1 (H)
     :param strengthLS: average distance from an old color to a new one, along one of LS axes
     :param strenthH: average distance from an old color to a new one, along H axis
     :param orderLS: how quickly repainting changes (it is actually sine frequency along a dimension) along LS axes
@@ -32,15 +32,24 @@ def UtilAugmRandomRepaintHLSMap(strengthLS=10., strengthH=10., orderLS = 2, orde
         strengthLS = tuple([strengthLS] * 2)
     mapLS = np.stack([UtilRandomSinFunc((256, 256), order=orderLS, expectedStd=strengthLS[i], \
                                         independentAxes=independentAxes) for i in range(2)], axis=2)
-    mapLS += UtilCartesianMatrix2d(range(256), range(256))
+    mapLS += UtilCartesianMatrixDefault(256, 256)
     mapLS = np.rint(UtilReflectCoordTensor(mapLS)).clip(min=0, max=255).astype(np.uint8)
 
     mapH = UtilRandomSinFunc((181,), order=orderH, expectedStd=strengthH).reshape(-1,1) # Max value 180. Bug in CV2 ?
-    mapH += UtilCartesianMatrix(range(181))
+    mapH += UtilCartesianMatrixDefault(181)
     mapH = np.mod(np.rint(mapH).astype(np.uint8), 180)
 
     return (mapLS, mapH)
 
+def UtilAugmConstRepaintHMap(strengthH=10):
+    """
+    Creates a repainting map of 181x1
+    :param strenthH: shift of H coordinate
+    :return:
+    """
+    mapH = UtilCartesianMatrixDefault(181) + strengthH # Max value 180. Bug in CV2 ?
+    mapH = np.mod(np.rint(mapH).astype(np.uint8), 180)
+    return mapH
 
 def UtilAugmRepaintRGB(img, repaintMap):
     """
@@ -61,7 +70,11 @@ def UtilAugmRepaintHLS(img, repaintMap):
     :return:
     """
     h,w = img.shape[:2]
-    repaintMapLS, repaintMapH = repaintMap
+    if isinstance(repaintMap, tuple):
+        repaintMapLS, repaintMapH = repaintMap
+    else:
+        repaintMapH = repaintMap
+        repaintMapLS = UtilCartesianMatrixDefault(256, 256).astype(np.uint8)
     img = cv2.cvtColor(UtilImageToInt(img), cv2.COLOR_BGR2HLS) # BGR because CV2 is using BGR order
     imgIndxsH, imgIndxsL, imgIndxsS = np.transpose(img.reshape(-1,3))
     repaintLS = repaintMapLS[imgIndxsL, imgIndxsS]
