@@ -5,6 +5,38 @@ from shared.pyutils.imageutils import *
 
 AllowedBinaryMaskExt = [".png", ".bmp"]
 
+class UtilAugmCachedMap(UtilObject):
+    mapDict = {}
+    debug = False
+    counter = 0
+    missCounter = 0
+
+    def __init__(self, func, **kwargs):
+        UtilAugmCachedMap.counter += 1
+        if UtilAugmCachedMap.debug and (UtilAugmCachedMap.counter % 100 == 0):
+            print('UtilAugmBidirMap hits %d misses %d' % \
+                  (UtilAugmCachedMap.counter - UtilAugmCachedMap.missCounter, UtilAugmCachedMap.missCounter))
+        key = (func.__name__,) + tuple(kwargs.values())
+        self.key = key
+        if key in UtilAugmCachedMap.mapDict:
+            obj = UtilAugmCachedMap.mapDict[key]
+            self.map = obj.map
+            self.reverseMap = obj.reverseMap
+            return
+            UtilAugmCachedMap.missCounter += 1
+        self.map = func(**kwargs)
+        self.reverseMap = None
+        UtilAugmCachedMap.mapDict[key] = self
+
+    def setReverseMap(self, reverseMap):
+        if self.reverseMap is None:
+            obj = UtilAugmCachedMap.mapDict[self.key]
+            if obj.reverseMap is not None:
+                self.reverseMap = obj.reverseMap
+                return
+            self.reverseMap = obj.reverseMap = UtilAugmReverseMapping(self.map)
+
+
 def UtilAugmCircleMappingLeft(boundRect,center,height,width):
     """
     Map image in a circullar manner
@@ -42,7 +74,7 @@ def UtilAugmRandomAxisScale(size, freqCtrl=30., depthCtrl = 1.5):
     arr = np.random.randn(size)
     return scipyFilters.gaussian_filter1d(arr, sigma) * math.sqrt(sigma) * depthCtrl
 
-def UtilAugmDblSinAxisScale(size, freqCtrl=4., depthCtrl = 1.):
+def _augmDblSinAxisScale(size, freqCtrl=4., depthCtrl = 1.):
     ampl1 = np.random.randn() * depthCtrl
     ampl2 = np.random.randn() * depthCtrl
     freq1 = np.random.randn() * freqCtrl * np.pi
@@ -74,7 +106,7 @@ def UtilAugmSimmetry1d(height, width, midCoord, isVertical, freqCtrl=4., depthCt
         height, width = (width, height)
     counter = 20
     while counter:
-        arr = UtilAugmDblSinAxisScale(height, freqCtrl, depthCtrl) + 1.
+        arr = _augmDblSinAxisScale(height, freqCtrl, depthCtrl) + 1.
         if (np.min(arr) > minScale) and (np.max(arr) < maxScale):
             break
         counter -= 1
@@ -111,12 +143,11 @@ def UtilAugmRotate(height, width, angle, centerPoint):
     indX = indDiff[:,:,1] * c - indDiff[:,:,0] * s
     return np.stack([indY, indX], axis=2) + [yCenter, xCenter]
 
-
 def UtilAugmReverseMapping(arrMap):
     """
     Maps original pixells into the new ones
-    :param arrMap: mapping of the new pixels into teh original ones
-    :return: matrix of [yReverseMapped, xreverseMapped]
+    :param mapObj: UtilAugmBidirMap with the forward map
+    :return: mapObj with reverse map
     """
     height, width, coordCount = arrMap.shape
     assert coordCount == 2
