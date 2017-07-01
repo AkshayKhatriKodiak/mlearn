@@ -14,7 +14,7 @@ class UtilAugmCachedMap(UtilObject):
     def __init__(self, func, **kwargs):
         UtilAugmCachedMap.counter += 1
         if UtilAugmCachedMap.debug and (UtilAugmCachedMap.counter % 100 == 0):
-            print('UtilAugmBidirMap hits %d misses %d' % \
+            print('UtilAugmCachedMap hits %d misses %d' % \
                   (UtilAugmCachedMap.counter - UtilAugmCachedMap.missCounter, UtilAugmCachedMap.missCounter))
         key = (func.__name__,) + tuple(kwargs.values())
         self.key = key
@@ -23,12 +23,12 @@ class UtilAugmCachedMap(UtilObject):
             self.map = obj.map
             self.reverseMap = obj.reverseMap
             return
-            UtilAugmCachedMap.missCounter += 1
+        UtilAugmCachedMap.missCounter += 1
         self.map = func(**kwargs)
         self.reverseMap = None
         UtilAugmCachedMap.mapDict[key] = self
 
-    def setReverseMap(self, reverseMap):
+    def setReverseMap(self):
         if self.reverseMap is None:
             obj = UtilAugmCachedMap.mapDict[self.key]
             if obj.reverseMap is not None:
