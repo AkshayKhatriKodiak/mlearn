@@ -25,16 +25,8 @@ class UtilAugmCachedMap(UtilObject):
             return
         UtilAugmCachedMap.missCounter += 1
         self.map = func(**kwargs)
-        self.reverseMap = None
+        self.reverseMap = UtilAugmReverseMapping(self.map)
         UtilAugmCachedMap.mapDict[key] = self
-
-    def setReverseMap(self):
-        if self.reverseMap is None:
-            obj = UtilAugmCachedMap.mapDict[self.key]
-            if obj.reverseMap is not None:
-                self.reverseMap = obj.reverseMap
-                return
-            self.reverseMap = obj.reverseMap = UtilAugmReverseMapping(self.map)
 
 
 def UtilAugmCircleMappingLeft(boundRect,center,height,width):
