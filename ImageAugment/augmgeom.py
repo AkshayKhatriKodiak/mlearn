@@ -58,7 +58,7 @@ def UtilAugmCircleMappingLeft(boundRect,center,height,width):
 def UtilAugmCircleMappingRight(boundRect,center,height,width):
     arr = UtilAugmCircleMappingLeft(boundRect,center,height,width)
     refArray = np.tile(range(width), height).reshape((height, width))
-    arr[:,:,1] = 2. * arr[:,:,1] - refArray
+    arr[:,:,1] = 2. * refArray - arr[:,:,1]
     return arr
 
 def UtilAugmRandomAxisScale(size, freqCtrl=30., depthCtrl = 1.5):
@@ -93,17 +93,15 @@ def UtilAugmIndepAxes(height, width, axisFunc, **kwargs):
             arr[j,i,:] = np.array([arrY[j], arrX[i]])
     return arr
 
-def UtilAugmSimmetry1d(height, width, midCoord, isVertical, freqCtrl=4., depthCtrl=0.1, minScale=0.7, maxScale=1.4):
+def UtilAugmSimmetry1d(height, width, midCoord, isVertical, depthCtrl=0.1, lowerLimit=None, upperLimit=None):
     if not isVertical:
         height, width = (width, height)
-    counter = 20
-    while counter:
-        arr = _augmDblSinAxisScale(height, freqCtrl, depthCtrl) + 1.
-        if (np.min(arr) > minScale) and (np.max(arr) < maxScale):
-            break
-        counter -= 1
-    if counter == 0:
-        return None
+    if lowerLimit is None:
+        lowerLimit = 0
+    if upperLimit is None:
+        upperLimit = height
+    interval = upperLimit - lowerLimit
+    arr = 1. - depthCtrl * np.sin((np.array(range(height), dtype=np.float32) - lowerLimit) * np.pi / interval)
     scaledX = np.outer(arr, np.array(range(width), dtype=np.float32) - midCoord) + midCoord
     assert scaledX.shape == (height, width)
     unscaledY = np.repeat(np.array(range(height)), width).reshape((height, width))
