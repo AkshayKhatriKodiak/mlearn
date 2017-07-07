@@ -14,8 +14,9 @@ class UtilAugmCachedMap(UtilObject):
     def __init__(self, func, **kwargs):
         UtilAugmCachedMap.counter += 1
         if UtilAugmCachedMap.debug and (UtilAugmCachedMap.counter % 100 == 0):
-            print('UtilAugmCachedMap hits %d misses %d' % \
-                  (UtilAugmCachedMap.counter - UtilAugmCachedMap.missCounter, UtilAugmCachedMap.missCounter))
+            print('UtilAugmCachedMap hits %d misses %d dict size %d' % \
+                  (UtilAugmCachedMap.counter - UtilAugmCachedMap.missCounter, \
+                  UtilAugmCachedMap.missCounter, len(UtilAugmCachedMap.mapDict)))
         key = (func.__name__,) + tuple(kwargs.values())
         self.key = key
         if key in UtilAugmCachedMap.mapDict:
