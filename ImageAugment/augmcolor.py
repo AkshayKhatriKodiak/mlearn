@@ -41,14 +41,33 @@ def UtilAugmRandomRepaintHLSMap(strengthLS=10., strengthH=10., orderLS = 2, orde
 
     return (mapLS, mapH)
 
-def UtilAugmConstRepaintHMap(strengthH=10):
+def UtilAugmConstRepaintHMap(strengthH=10, gapStart=None, gapStop=None, smooth=False):
     """
     Creates a repainting map of 181x1
     :param strenthH: shift of H coordinate
+    :param gapStart: start of the interval where there should be no repaint
+    :param gapStop: stop of the interval where there should be no repaint
+    :param smooth: if we need to smooth transitions
     :return:
     """
-    mapH = UtilCartesianMatrixDefault(181) + strengthH # Max value 180. Bug in CV2 ?
-    mapH = np.mod(np.rint(mapH).astype(np.uint8), 180)
+    shiftArr = np.full((181,), strengthH, dtype=np.int)
+    if gapStart is not None:
+        assert gapStop is not None
+        if gapStart < 0:
+            gapStart = 180 + gapStart
+        if gapStop < 0:
+            gapStop = 180 + gapStop
+        if gapStart < gapStop:
+            shiftArr[gapStart:gapStop] = 0
+        else:
+            shiftArr[gapStart:] = 0
+            shiftArr[:gapStop] = 0
+    if smooth:
+        for _ in range(5):
+            shiftArr = (shiftArr[list(range(1,181))+[0]] + shiftArr[[-1]+list(range(0,180))]) / 2
+    shiftArr = shiftArr.reshape((-1, 1))
+    mapH = UtilCartesianMatrixDefault(181) + shiftArr # Max value 180. Bug in CV2 ?
+    mapH = np.mod(np.rint(mapH), 180).astype(np.uint8)
     return mapH
 
 def UtilAugmRepaintRGB(img, repaintMap):
@@ -75,11 +94,11 @@ def UtilAugmRepaintHLS(img, repaintMap):
     else:
         repaintMapH = repaintMap
         repaintMapLS = UtilCartesianMatrixDefault(256, 256).astype(np.uint8)
-    img = cv2.cvtColor(UtilImageToInt(img), cv2.COLOR_BGR2HLS) # BGR because CV2 is using BGR order
+    img = cv2.cvtColor(UtilImageToInt(img), cv2.COLOR_RGB2HLS)
     imgIndxsH, imgIndxsL, imgIndxsS = np.transpose(img.reshape(-1,3))
     repaintLS = repaintMapLS[imgIndxsL, imgIndxsS]
     img = np.stack([repaintMapH[imgIndxsH][:,0], repaintLS[:,0], repaintLS[:,1]], axis=1)
-    return cv2.cvtColor(img.reshape((h,w,3)), cv2.COLOR_HLS2BGR).astype(np.float32)
+    return cv2.cvtColor(img.reshape((h,w,3)), cv2.COLOR_HLS2RGB).astype(np.float32)
 
 def UtilAugmColorReplacement(img, colorStr):
     """
