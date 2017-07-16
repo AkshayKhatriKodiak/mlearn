@@ -70,6 +70,16 @@ def UtilAugmConstRepaintHMap(strengthH=10, gapStart=None, gapStop=None, smooth=F
     mapH = np.mod(np.rint(mapH), 180).astype(np.uint8)
     return mapH
 
+def UtilAugmIncrSaturLSMap(multiply):
+    """
+    Creates an LS repainting map of 256x256x2
+    :param multiply: by how much saturaton needs to be multiplied
+    :return:
+    """
+    mapLS = UtilCartesianMatrixDefault(256, 256) * np.array([1., multiply], dtype=np.float32)
+    mapLS = np.rint(mapLS).clip(max=255).astype(np.uint8)
+    return mapLS
+
 def UtilAugmRepaintRGB(img, repaintMap):
     """
     Randomply remap picture colors
@@ -92,8 +102,13 @@ def UtilAugmRepaintHLS(img, repaintMap):
     if isinstance(repaintMap, tuple):
         repaintMapLS, repaintMapH = repaintMap
     else:
-        repaintMapH = repaintMap
-        repaintMapLS = UtilCartesianMatrixDefault(256, 256).astype(np.uint8)
+        if repaintMap.shape == (181, 1):
+            repaintMapH = repaintMap
+            repaintMapLS = UtilCartesianMatrixDefault(256, 256).astype(np.uint8)
+        else:
+            assert repaintMap.shape == (256, 256, 2)
+            repaintMapH = UtilCartesianMatrixDefault(181).astype(np.uint8)
+            repaintMapLS = repaintMap
     img = cv2.cvtColor(UtilImageToInt(img), cv2.COLOR_RGB2HLS)
     imgIndxsH, imgIndxsL, imgIndxsS = np.transpose(img.reshape(-1,3))
     repaintLS = repaintMapLS[imgIndxsL, imgIndxsS]
