@@ -33,7 +33,8 @@ def UtilAugmRandomRepaintHLSMap(strengthLS=10., strengthH=10., orderLS = 2, orde
     mapLS = np.stack([UtilRandomSinFunc((256, 256), order=orderLS, expectedStd=strengthLS[i], \
                                         independentAxes=independentAxes) for i in range(2)], axis=2)
     mapLS += UtilCartesianMatrixDefault(256, 256)
-    mapLS = np.rint(UtilReflectCoordTensor(mapLS)).clip(min=0, max=255).astype(np.uint8)
+    mapLS = UtilReflectCoordTensor(mapLS)
+    mapLS = np.rint(mapLS).clip(min=0, max=255).astype(np.uint8)
 
     mapH = UtilRandomSinFunc((181,), order=orderH, expectedStd=strengthH).reshape(-1,1) # Max value 180. Bug in CV2 ?
     mapH += UtilCartesianMatrixDefault(181)

@@ -209,5 +209,5 @@ def UtilRemapBinaryMask(imgMask, map):
     """
     For a binary mask we should remove all splining
     """
-    imgMask = UtilRemapImage(imgMask, map, fillValue = 127., ky=1, kx=1)
+    imgMask = UtilRemapImage(imgMask, map, fillMethod='constant', fillValue=127., ky=1, kx=1)
     return UtilAdjustBinaryMask(imgMask)
