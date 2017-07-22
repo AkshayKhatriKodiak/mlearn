@@ -189,11 +189,14 @@ def UtilAugmReverseMapping(arrMap):
     # Covert array of tuples to np array
     return np.dstack([np.vectorize(operator.itemgetter(i))(tupleArr) for i in (0,1)])
 
-def UtilAdjustBinaryMask(img):
+def UtilAdjustBinaryMask(img, high=255., low=0.):
     if len(img.shape) == 3:
         img = UtilFromRgbToGray(img)
     boolImg = img >= 128
-    return np.where(boolImg, 255., 0.)
+    return np.where(boolImg, high, low)
+
+def UtilAdjustBinaryMaskToInt(img):
+    return UtilAdjustBinaryMask(img, high=255, low=0)
 
 def UtilSaveBinaryMask(img, fileName):
     assert os.path.splitext(fileName)[1].lower() in AllowedBinaryMaskExt

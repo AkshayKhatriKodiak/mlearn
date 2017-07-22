@@ -1,8 +1,10 @@
 __author__ = "Misha Orel"
 
 from mlearn.ImageAugment.augmgeom import *
+from mlearn.ImageAugment.augmcolor import *
 
-def UtilBlendForeBackGround(imgFg, imgFgMask, imgBg, yShift=0, xShift=0, blendSigma=None, blendBright=None):
+def UtilBlendForeBackGround(imgFg, imgFgMask, imgBg, yShift=0, xShift=0, blendBright=None, blendSatur=None, \
+                            blurLayers=0):
     """
     Blends foreground image, limited by the binary mask, with the background
     :param imgFg:
@@ -21,18 +23,34 @@ def UtilBlendForeBackGround(imgFg, imgFgMask, imgBg, yShift=0, xShift=0, blendSi
     assert (np.min(imgFg) >= 0) and (np.min(imgBg) >= 0)
     h,w,_ = imgFg.shape
 
-    # TODO: sharpness equalization
-    # TODO: hue equalization
+    imgFgMask = UtilAdjustBinaryMaskToInt(imgFgMask)
 
-    # Brightness equalization
-    def padWidth(shift):
+    # TODO: sharpness equalization
+
+    def _padWidth(shift):
         return (max(0, shift), max(0, -shift))
-    yBefPad, yAftPad = padWidth(yShift)
-    xBefPad, xAftPad = padWidth(xShift)
+
+    yBefPad, yAftPad = _padWidth(yShift)
+    xBefPad, xAftPad = _padWidth(xShift)
+
+    imgFgMaskShifted = np.pad(imgFgMask, ((yBefPad, yAftPad), (xBefPad, xAftPad)), \
+                          mode='constant', constant_values=0)[yAftPad:h + yAftPad, xAftPad:w + xAftPad]
+
     if blendBright is not None:
+        # Brightness equalization
         imgFgShifted = np.pad(imgFg, ((yBefPad, yAftPad), (xBefPad, xAftPad), (0,0)), \
             mode='constant', constant_values=127.)[yAftPad:h+yAftPad, xAftPad:w+xAftPad, :]
         imgBg = UtilImageEqualizeBrightness(imgBg, imgFgShifted, blendBright=blendBright, kernelSize = w // 10)
+
+    if blendSatur is not None:
+        # Saturation equalization
+        imgHls = cv2.cvtColor(UtilImageToInt(imgFg), cv2.COLOR_RGB2HLS)
+        fgSat = np.mean(imgHls[:,:,2])
+        imgHls = cv2.cvtColor(UtilImageToInt(imgBg), cv2.COLOR_RGB2HLS)
+        bgSat = max(np.mean(imgHls[:,:,2]), 1.)
+        mapLS = UtilAugmIncrSaturLSMap(fgSat / (bgSat * blendSatur + fgSat * (1. - blendSatur)))
+        imgBg = UtilAugmRepaintHLS(imgBg, mapLS)
+
 
     # Blending
     pilImgBg = Image.fromarray(UtilImageToInt(imgBg), mode="RGB")
@@ -40,11 +58,30 @@ def UtilBlendForeBackGround(imgFg, imgFgMask, imgBg, yShift=0, xShift=0, blendSi
     pilImgFgMask = Image.fromarray(UtilImageToInt(imgFgMask), mode="L")
     pilImgBg.paste(pilImgFg, (xShift, yShift), mask = pilImgFgMask)
     imgBlend = np.asarray(pilImgBg, dtype=np.float32)
-    # TODO: Do it right, at the border
-    if blendSigma is not None:
-        imgBlend = np.dstack([scipyFilters.gaussian_filter(imgBlend[:,:,i], sigma=1.0) for i in range(3)])
 
-    return imgBlend
+    imgBlend = UtilImageEqualizeBorder(imgBlend, imgFgMaskShifted, blurLayers=blurLayers)
+
+    return (imgBlend, imgFgMaskShifted)
+
+
+def UtilImageEqualizeBorder(img, imgMask, blurLayers=0):
+    # To do blurring on the border
+
+    blurList = []
+    blurImg = img
+    for i in range(blurLayers):
+        paddedImg = np.pad(blurImg, ((1,1), (1,1), (0,0)), mode='reflect')
+        blurImg = (blurImg + np.sum(UtilGenerate4WayShifted(paddedImg), axis=3)) / 5.
+        blurList.append(blurImg)
+    blurList = list(reversed(blurList))
+
+    boundaries = UtilRegionBoundaries(imgMask, levelCount=blurLayers)
+
+    for i, blurredImg in enumerate(blurList):
+        cond = np.stack([boundaries == (i+1)] * 3, axis=-1)
+        img = np.where(cond, blurredImg, img)
+
+    return img
 
 
 def UtilImageEqualizeBrightness(imgDst, imgSrc, blendBright=1., kernelSize=15):
@@ -59,7 +96,7 @@ def UtilImageEqualizeBrightness(imgDst, imgSrc, blendBright=1., kernelSize=15):
     brSrc = UtilFromRgbToGray(imgSrc)
     brDstFilt = scipyFilters.gaussian_filter(brDst, sigma=kernelSize).clip(min=1.0)
     brSrcFilt = scipyFilters.gaussian_filter(brSrc, sigma=kernelSize).clip(min=1.0)
-    ratio = brSrcFilt * np.reciprocal(brDstFilt) * blendBright
+    ratio = brSrcFilt * np.reciprocal(brDstFilt * blendBright + brSrcFilt * (1. - blendBright))
     # Smoothly limit ratio to [1/e, e]
     ratio = np.exp(np.tanh(np.log(ratio)))
     # Find maximum posible value of ratio, so that the destination color does not change
