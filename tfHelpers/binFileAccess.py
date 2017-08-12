@@ -8,20 +8,11 @@ __author__ = "Misha Orel"
 
 import sys
 import numpy as np
-from multiprocessing import RawArray, Process, cpu_count
+from multiprocessing import Array, Process, cpu_count
 import psutil
 import functools
 import time
 from shared.pyutils.utils import *
-
-def _calculateEntryItemSize(typeShapeTuple):
-    return np.dtype(typeShapeTuple[0]).itemsize * functools.reduce(lambda x, y: x*y, list(typeShapeTuple[1]))
-
-def _calculateEntrySize(typeShapeList):
-    s = 0
-    for t in typeShapeList:
-        s += _calculateEntryItemSize(t)
-    return s
 
 def _worker(fileName, offset, entrySize, entryCount, array, weightsFileName=None):
     entriesToRead = len(array) // entrySize
@@ -93,7 +84,7 @@ class BinFileParRandBuffer(UtilObject):
         self.bufferEntryCount = bufferEntryCount
         self.bufferCount = bufferCount
         self.fileSize = os.path.getsize(fileName)
-        self.buffers = [RawArray('B', bufferEntryCount * entrySize) for _ in range(bufferCount)]
+        self.buffers = [Array('B', bufferEntryCount * entrySize, lock=False) for _ in range(bufferCount)]
         self.memViews = [memoryview(b) for b in self.buffers]
         self.empty = True
         self.inProgress = False
@@ -145,7 +136,7 @@ class BinFileParRandReader(UtilObject):
 
         self.batchSize = batchSize
         self.typeShapeList = typeShapeList
-        self.itemSizes = [_calculateEntryItemSize(t) for t in typeShapeList]
+        self.itemSizes = [UtilNumpyEntryItemSize(t) for t in typeShapeList]
         entrySize = sum(self.itemSizes)
 
         # Let's grab memory
@@ -222,7 +213,7 @@ class BinFileSimpleReader(UtilObject):
         self.fileSize = os.path.getsize(fileName)
         self.batchSize = batchSize
         self.typeShapeList = typeShapeList
-        entrySize = sum([_calculateEntryItemSize(t) for t in typeShapeList])
+        entrySize = UtilNumpyEntriesSize(typeShapeList)
         self.maxCount = self.fileSize // (entrySize * batchSize) // batchesAtOnce * batchesAtOnce
         if self.maxCount == 0:
             raise ValueError('This file size %u cannot be broken in %d chuncks of batches of size %d' % \
