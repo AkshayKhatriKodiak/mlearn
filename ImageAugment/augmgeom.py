@@ -1,4 +1,19 @@
-__author__ = "Misha Orel"
+# Geometrical distortions for image augmentation
+
+# Copyright (C) 2016-2017  Author: Misha Orel
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from shared.pyutils.tensorutils import *
 from shared.pyutils.imageutils import *
@@ -204,6 +219,8 @@ def UtilSaveBinaryMask(img, fileName):
     UtilArrayToImageFile(img, fileName)
 
 def UtilLoadBinaryMask(fileName):
+    if fileName in (None, ''):
+        return None
     assert os.path.splitext(fileName)[1].lower() in AllowedBinaryMaskExt
     img = UtilImageFileToArray(fileName)
     return UtilAdjustBinaryMask(img)
