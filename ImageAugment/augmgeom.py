@@ -223,6 +223,8 @@ def UtilLoadBinaryMask(fileName):
         return None
     assert os.path.splitext(fileName)[1].lower() in AllowedBinaryMaskExt
     img = UtilImageFileToArray(fileName)
+    if img is None:
+        return None
     return UtilAdjustBinaryMask(img)
 
 def UtilRemapBinaryMask(imgMask, map):
