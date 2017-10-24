@@ -15,13 +15,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import psutil
 from shared.pyutils.tensorutils import *
 from shared.pyutils.imageutils import *
 
 AllowedBinaryMaskExt = [".png", ".bmp"]
 
 class UtilAugmCachedMap(UtilObject):
-    mapDict = {}
+    mapDict = {} # Could be set from outside as a multiprocess dictionary (like Manager.dict),
+                # that's why it is a simple dictionary
+    lruList = UtilSimpleLinkedList()
+    CheckInterval = 50
     debug = False
     counter = 0
     missCounter = 0
@@ -32,17 +36,35 @@ class UtilAugmCachedMap(UtilObject):
             print('UtilAugmCachedMap hits %d misses %d dict size %d' % \
                   (UtilAugmCachedMap.counter - UtilAugmCachedMap.missCounter, \
                   UtilAugmCachedMap.missCounter, len(UtilAugmCachedMap.mapDict)))
+
+        # See if we are running out of memory
+        if (UtilAugmCachedMap.counter % UtilAugmCachedMap.CheckInterval == 0):
+            if psutil.virtual_memory().available < (1 << 30): # 1GB
+                for _ in range(UtilAugmCachedMap.CheckInterval):
+                    if UtilAugmCachedMap.lruList.head is None:
+                        break
+                    obj = UtilAugmCachedMap.lruList.head
+                    UtilAugmCachedMap.lruList.dequeue(obj)
+                    try:
+                        del UtilAugmCachedMap.mapDict[obj.key]
+                    except KeyError:
+                        pass
+
         key = (func.__name__,) + tuple(kwargs.values())
         self.key = key
         if key in UtilAugmCachedMap.mapDict:
             obj = UtilAugmCachedMap.mapDict[key]
+            UtilAugmCachedMap.lruList.dequeue(obj)
+            UtilAugmCachedMap.lruList.append(obj)
             self.map = obj.map
             self.reverseMap = obj.reverseMap
             return
         UtilAugmCachedMap.missCounter += 1
         self.map = func(**kwargs)
         self.reverseMap = UtilAugmReverseMapping(self.map)
+        self.key = key
         UtilAugmCachedMap.mapDict[key] = self
+        UtilAugmCachedMap.lruList.append(self)
 
 
 def UtilAugmCircleMappingLeft(boundRect,center,height,width):
