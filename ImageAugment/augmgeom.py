@@ -37,10 +37,15 @@ class UtilAugmCachedMap(UtilObject):
                   (UtilAugmCachedMap.counter - UtilAugmCachedMap.missCounter, \
                   UtilAugmCachedMap.missCounter, len(UtilAugmCachedMap.mapDict)))
 
+        # Statistically remove extra entries in the linked list
+        obj = UtilAugmCachedMap.lruList.head
+        if (obj is not None) and (obj.key not in UtilAugmCachedMap.mapDict):
+            UtilAugmCachedMap.lruList.dequeue(obj)
+
         # See if we are running out of memory
         if (UtilAugmCachedMap.counter % UtilAugmCachedMap.CheckInterval == 0):
             if psutil.virtual_memory().available < (1 << 30): # 1GB
-                for _ in range(UtilAugmCachedMap.CheckInterval):
+                for _ in range(UtilAugmCachedMap.lruList.count(0) // 20): # Removing 5% of the lru list
                     if UtilAugmCachedMap.lruList.head is None:
                         break
                     obj = UtilAugmCachedMap.lruList.head
