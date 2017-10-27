@@ -29,6 +29,7 @@ class UtilAugmCachedMap(UtilObject):
     debug = False
     counter = 0
     missCounter = 0
+    pid = os.getpid()
 
     def __init__(self, func, **kwargs):
         UtilAugmCachedMap.counter += 1
@@ -37,37 +38,36 @@ class UtilAugmCachedMap(UtilObject):
                   (UtilAugmCachedMap.counter - UtilAugmCachedMap.missCounter, \
                   UtilAugmCachedMap.missCounter, len(UtilAugmCachedMap.mapDict)))
 
-        # Statistically remove extra entries in the linked list
-        obj = UtilAugmCachedMap.lruList.head
-        if (obj is not None) and (obj.key not in UtilAugmCachedMap.mapDict):
-            UtilAugmCachedMap.lruList.dequeue(obj)
-
         # See if we are running out of memory
         if (UtilAugmCachedMap.counter % UtilAugmCachedMap.CheckInterval == 0):
             if psutil.virtual_memory().available < (1 << 30): # 1GB
-                for _ in range(UtilAugmCachedMap.lruList.count(0) // 20): # Removing 5% of the lru list
-                    if UtilAugmCachedMap.lruList.head is None:
-                        break
+                for _ in range(UtilAugmCachedMap.lruList.count() // 20): # Removing 5% of the lru list
                     obj = UtilAugmCachedMap.lruList.head
+                    assert obj.pid == UtilAugmCachedMap.pid
                     UtilAugmCachedMap.lruList.dequeue(obj)
                     try:
-                        del UtilAugmCachedMap.mapDict[obj.key]
+                        if UtilAugmCachedMap.mapDict[obj.key].pid == UtilAugmCachedMap.pid:
+                            del UtilAugmCachedMap.mapDict[obj.key]
                     except KeyError:
                         pass
 
         key = (func.__name__,) + tuple(kwargs.values())
-        self.key = key
         if key in UtilAugmCachedMap.mapDict:
-            obj = UtilAugmCachedMap.mapDict[key]
-            UtilAugmCachedMap.lruList.dequeue(obj)
-            UtilAugmCachedMap.lruList.append(obj)
-            self.map = obj.map
-            self.reverseMap = obj.reverseMap
-            return
+            try:
+                obj = UtilAugmCachedMap.mapDict[key]
+                if obj.pid == UtilAugmCachedMap.pid:
+                    UtilAugmCachedMap.lruList.dequeue(obj)
+                    UtilAugmCachedMap.lruList.append(obj)
+                self.map = obj.map
+                self.reverseMap = obj.reverseMap
+                return
+            except KeyError:
+                pass
         UtilAugmCachedMap.missCounter += 1
         self.map = func(**kwargs)
         self.reverseMap = UtilAugmReverseMapping(self.map)
         self.key = key
+        self.pid = UtilAugmCachedMap.pid
         UtilAugmCachedMap.mapDict[key] = self
         UtilAugmCachedMap.lruList.append(self)
 
