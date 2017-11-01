@@ -59,7 +59,7 @@ class UtilAugmCachedMap(UtilObject):
 
         obj = None
         if key in cls.localMapDict:
-            obj = cls.mapDict[key]
+            obj = cls.localMapDict[key]
             cls.lruList.dequeue(obj)
             cls.lruList.append(obj)
         elif key in cls.mapDict:
