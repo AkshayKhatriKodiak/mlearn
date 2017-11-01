@@ -79,7 +79,7 @@ class UtilAugmCachedMap(UtilObject):
         self.key = key
         cls.mapDict[key] = self
         cls.localMapDict[key] = self
-        cls.lruList.append(obj)
+        cls.lruList.append(self)
 
 
 def UtilAugmCircleMappingLeft(boundRect,center,height,width):
