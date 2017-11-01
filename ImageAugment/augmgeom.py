@@ -24,52 +24,62 @@ AllowedBinaryMaskExt = [".png", ".bmp"]
 class UtilAugmCachedMap(UtilObject):
     mapDict = {} # Could be set from outside as a multiprocess dictionary (like Manager.dict),
                 # that's why it is a simple dictionary
+    localMapDict = {} # This guy is not shared between processes, keeps maps that were initiated from
+                      # this process
     lruList = UtilSimpleLinkedList()
     CheckInterval = 50
     debug = False
     counter = 0
     missCounter = 0
-    pid = os.getpid()
 
     def __init__(self, func, **kwargs):
-        UtilAugmCachedMap.counter += 1
-        if UtilAugmCachedMap.debug and (UtilAugmCachedMap.counter % 100 == 0):
-            print('UtilAugmCachedMap hits %d misses %d dict size %d' % \
-                  (UtilAugmCachedMap.counter - UtilAugmCachedMap.missCounter, \
-                  UtilAugmCachedMap.missCounter, len(UtilAugmCachedMap.mapDict)))
+        cls = self.__class__
+        cls.counter += 1
+        if cls.debug and (cls.counter % 100 == 0):
+            print('UtilAugmCachedMap hits %d misses %d dict size %d local dict size %d' % \
+                  (cls.counter - cls.missCounter, \
+                  cls.missCounter, len(cls.mapDict), len(len(cls.localMapDict))))
 
         # See if we are running out of memory
-        if (UtilAugmCachedMap.counter % UtilAugmCachedMap.CheckInterval == 0):
+        if (cls.counter % cls.CheckInterval == 0):
+            assert cls.lruList.count() == len(cls.localMapDict)
             if psutil.virtual_memory().available < (1 << 30): # 1GB
-                for _ in range(UtilAugmCachedMap.lruList.count() // 20): # Removing 5% of the lru list
-                    obj = UtilAugmCachedMap.lruList.head
-                    assert obj.pid == UtilAugmCachedMap.pid
-                    UtilAugmCachedMap.lruList.dequeue(obj)
+                for _ in range(cls.lruList.count() // 20): # Removing 5% of the lru list
+                    obj = cls.lruList.head
+                    assert cls.localMapDict[obj.key] == obj
+                    cls.lruList.dequeue(obj)
+                    del cls.localMapDict[obj.key]
                     try:
-                        if UtilAugmCachedMap.mapDict[obj.key].pid == UtilAugmCachedMap.pid:
-                            del UtilAugmCachedMap.mapDict[obj.key]
+                        # Might have already been removed
+                        del cls.mapDict[obj.key]
                     except KeyError:
                         pass
 
         key = (func.__name__,) + tuple(kwargs.values())
-        if key in UtilAugmCachedMap.mapDict:
+
+        obj = None
+        if key in cls.localMapDict:
+            obj = cls.mapDict[key]
+            cls.lruList.dequeue(obj)
+            cls.lruList.append(obj)
+        elif key in cls.mapDict:
             try:
-                obj = UtilAugmCachedMap.mapDict[key]
-                if obj.pid == UtilAugmCachedMap.pid:
-                    UtilAugmCachedMap.lruList.dequeue(obj)
-                    UtilAugmCachedMap.lruList.append(obj)
-                self.map = obj.map
-                self.reverseMap = obj.reverseMap
-                return
+                obj = cls.mapDict[key]
             except KeyError:
                 pass
-        UtilAugmCachedMap.missCounter += 1
+
+        if obj is not None:
+            self.map = obj.map
+            self.reverseMap = obj.reverseMap
+            return
+
+        cls.missCounter += 1
         self.map = func(**kwargs)
         self.reverseMap = UtilAugmReverseMapping(self.map)
         self.key = key
-        self.pid = UtilAugmCachedMap.pid
-        UtilAugmCachedMap.mapDict[key] = self
-        UtilAugmCachedMap.lruList.append(self)
+        cls.mapDict[key] = self
+        cls.localMapDict[key] = self
+        cls.lruList.append(obj)
 
 
 def UtilAugmCircleMappingLeft(boundRect,center,height,width):
