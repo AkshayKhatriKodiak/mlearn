@@ -87,7 +87,6 @@ class UtilAugmCachedMap(UtilObject):
             self.reverseMap = obj.reverseMap
             return
 
-        cls.missCounter += 1
         self.map = func(**kwargs)
         self.reverseMap = UtilAugmReverseMapping(self.map)
         self.key = key
