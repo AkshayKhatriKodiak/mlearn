@@ -30,21 +30,29 @@ class UtilAugmCachedMap(UtilObject):
     CheckInterval = 50
     debug = False
     counter = 0
-    missCounter = 0
+    localHitCounter = 0
+    globalHitCounter = 0
+    trimCounter = 0
 
     def __init__(self, func, **kwargs):
         cls = self.__class__
+
         cls.counter += 1
         if cls.debug and (cls.counter % 100 == 0):
-            print('UtilAugmCachedMap hits %d misses %d dict size %d local dict size %d' % \
-                  (cls.counter - cls.missCounter, \
-                  cls.missCounter, len(cls.mapDict), len(len(cls.localMapDict))))
+            print('UtilAugmCachedMap local hits %d global hits %d misses %d trimmings %d ' \
+                    'dict size %d local dict size %d' % \
+                  (cls.localHitCounter, cls.globalHitCounter,
+                   cls.counter - (cls.localHitCounter + cls.globalHitCounter), \
+                  cls.trimCounter, len(cls.mapDict), len(cls.localMapDict)))
 
         # See if we are running out of memory
         if (cls.counter % cls.CheckInterval == 0):
             assert cls.lruList.count() == len(cls.localMapDict)
             if psutil.virtual_memory().available < (1 << 30): # 1GB
-                for _ in range(cls.lruList.count() // 20): # Removing 5% of the lru list
+                cls.trimCounter += 1
+                trimCount = cls.lruList.count() // 20
+                oldGlobalMapLen = len(cls.mapDict)
+                for _ in range(trimCount): # Removing 5% of the lru list
                     obj = cls.lruList.head
                     assert cls.localMapDict[obj.key] == obj
                     cls.lruList.dequeue(obj)
@@ -54,17 +62,23 @@ class UtilAugmCachedMap(UtilObject):
                         del cls.mapDict[obj.key]
                     except KeyError:
                         pass
+                if cls.debug:
+                    print('Trimmed %d entries Global map %d -> %d (reduced by %d) glob mem %u' %
+                          (trimCount, oldGlobalMapLen, len(cls.mapDict), oldGlobalMapLen - len(cls.mapDict),
+                           psutil.virtual_memory().available))
 
         key = (func.__name__,) + tuple(kwargs.values())
 
         obj = None
         if key in cls.localMapDict:
+            cls.localHitCounter += 1
             obj = cls.localMapDict[key]
             cls.lruList.dequeue(obj)
             cls.lruList.append(obj)
         elif key in cls.mapDict:
             try:
                 obj = cls.mapDict[key]
+                cls.globalHitCounter += 1
             except KeyError:
                 pass
 
