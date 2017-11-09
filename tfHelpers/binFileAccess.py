@@ -31,6 +31,7 @@ import psutil
 import functools
 import time
 from shared.pyutils.utils import *
+from shared.pyutils.tensorutils import *
 
 def _worker(fileName, offset, entrySize, entryCount, array, weightsFileName=None):
     entriesToRead = len(array) // entrySize
