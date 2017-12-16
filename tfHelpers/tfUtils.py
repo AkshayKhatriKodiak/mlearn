@@ -17,6 +17,7 @@
 
 import tensorflow as tf
 from shared.pyutils.utils import *
+from shared.pyutils.tensorutils import *
 
 def tfUtilLoadGraph(fileName, prefix=''):
 
