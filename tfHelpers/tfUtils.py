@@ -15,9 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import tensorflow as tf
 from shared.pyutils.utils import *
 from shared.pyutils.tensorutils import *
+_minTfVersion = '1.4'
+import tensorflow as tf
+if forwardCompat.VersionCompare(tf.__version__, _minTfVersion) < 0:
+    raise ValueError('Tensorflow too old: required %s, actual %s' % (_minTfVersion, tf.__version__))
 
 def tfUtilLoadGraph(fileName, prefix=''):
 
@@ -34,6 +37,13 @@ def tfUtilLoadGraph(fileName, prefix=''):
 
 def tfUtliDumpGraph(g):
     return g.get_operations()
+
+
+def tfGetTrainableCount(scope=None):
+    ret = 0
+    for var in tf.trainable_variables(scope=scope):
+        ret += functools.reduce(lambda x, y: x * y, var.get_shape())
+    return ret
 
 
 def tfUtilCentroids(imgs, axes):
