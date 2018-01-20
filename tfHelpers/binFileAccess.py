@@ -96,20 +96,31 @@ class BinFileParRandBuffer(UtilObject):
     A helper class for BinFileReader. Implements a buffer, and worker process invocation that fills the buffer
     """
 
-    def __init__(self, fileName, bufferEntryCount, bufferCount, entrySize, weightsFileName=None):
+    def __init__(self, fileName, bufferEntryCount, bufferCount, entrySize, weightsFileName=None, bufferSizeRampUp=0):
         self.fileName = fileName
         self.weightsFileName = weightsFileName
         self.entrySize = entrySize
-        self.bufferEntryCount = bufferEntryCount
+        self.targetBufferEntryCount = bufferEntryCount
+        self.bufferEntryCount = None
         self.bufferCount = bufferCount
         self.fileSize = os.path.getsize(fileName)
-        self.buffers = [Array('B', bufferEntryCount * entrySize, lock=False) for _ in range(bufferCount)]
-        self.memViews = [memoryview(b) for b in self.buffers]
+        self.buffers = None
+        self.memViews = None
         self.empty = True
+        self.rampUpCounter = bufferSizeRampUp
         self.inProgress = False
 
     def fetchFromFile(self):
         assert self.empty and (not self.inProgress)
+
+        # Allocate arrays if needed
+        if self.rampUpCounter >= 0:
+            self.bufferEntryCount = self.targetBufferEntryCount // (1 << self.rampUpCounter)
+            self.buffers = [Array('B', self.bufferEntryCount * self.entrySize, lock=False)
+                            for _ in range(self.bufferCount)]
+            self.memViews = [memoryview(b) for b in self.buffers]
+            self.rampUpCounter -= 1
+
         self.empty = False
         self.inProgress = True
         self.readBufPos = 0
@@ -148,6 +159,9 @@ class BinFileParRandReader(UtilObject):
     or modify them.
     """
 
+    minBufferEntryCount = 32
+    assert minBufferEntryCount & (minBufferEntryCount - 1) == 0
+
     def __init__(self, fileName, typeShapeList, batchSize, weightsFileName=None, procCount=None, mem=None):
         self.fileSize = os.path.getsize(fileName)
         if procCount is None:
@@ -164,10 +178,11 @@ class BinFileParRandReader(UtilObject):
         memorySize = min(memorySize, self.fileSize)
 
         while True:
-            if memorySize >= psutil.virtual_memory().available:
+            # Should not take more than half of the whole memory
+            if memorySize >= psutil.virtual_memory().available // 2:
                 raise MemoryError('Not enough available physical memory to get %u' % memorySize)
             bufferEntryCount = memorySize // 2 // procCount // entrySize // batchSize * batchSize
-            if bufferEntryCount >= 16:
+            if bufferEntryCount >= self.minBufferEntryCount:
                 break
             if memorySize >= self.fileSize:
                 if procCount > 1:
@@ -177,8 +192,10 @@ class BinFileParRandReader(UtilObject):
             else:
                 memorySize *= 2
 
+        bufferSizeRampUp = bufferEntryCount.bit_length() - BinFileParRandReader.minBufferEntryCount.bit_length()
+
         self.buffers = [BinFileParRandBuffer(fileName, entrySize=entrySize, bufferEntryCount=bufferEntryCount, \
-            bufferCount=procCount, weightsFileName=weightsFileName) for _ in (0, 1)]
+            bufferCount=procCount, weightsFileName=weightsFileName, bufferSizeRampUp=bufferSizeRampUp) for _ in (0, 1)]
         self.currentBuffer = 1 # We start with the "other" buffer so we are never fetching 2 buffers at the same time
         self.buffers[0].fetchFromFile()
 
