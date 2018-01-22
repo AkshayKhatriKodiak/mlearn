@@ -15,8 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from shared.pyutils.utils import *
+from shared.pyutils.imageutils import *
 from shared.pyutils.tensorutils import *
+import matplotlib.pyplot as plt
 
 
 def UtilTimeSeqRandomSelect(len, minSelect, count):
@@ -45,3 +46,20 @@ def UtilTimeSeqRandomSelect(len, minSelect, count):
         n = len
 
     return n
+
+
+def UtilDisplayAccuracyLoss(accuracy, loss, averaging=None):
+    accuracy = np.array(accuracy)
+    loss = np.array(loss)
+    if averaging is not None:
+        accuracy = scipyFilters.gaussian_filter1d(accuracy, sigma=averaging, axis=0)
+        loss = scipyFilters.gaussian_filter1d(loss, sigma=averaging, axis=0)
+
+    accuracy = accuracy / np.min(accuracy).clip(min=UtilNumpyClippingValue(accuracy.dtype))
+    loss = loss / np.min(loss).clip(min=UtilNumpyClippingValue(loss.dtype))
+
+    accuracy = np.log(accuracy)
+    loss = np.log(loss)
+
+    plt.plot(range(loss.shape[0]), loss, 'gs', range(accuracy.shape[0]), accuracy, 'ro')
+    plt.show()
