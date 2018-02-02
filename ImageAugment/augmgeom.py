@@ -34,7 +34,23 @@ class UtilAugmCachedMap(UtilObject):
     globalHitCounter = 0
     trimCounter = 0
 
-    def __init__(self, func, **kwargs):
+
+    @staticmethod
+    def _getDefaultReservedMem():
+        """
+        1 GB, can be overriden with AUGMGEOM_CACHED_MAP_RESERVE_GB environment variable
+        :return:
+        """
+        reserveGb = os.environ.get('AUGMGEOM_CACHED_MAP_RESERVE_GB')
+        if reserveGb is None:
+            reserveGb = 1
+        return reserveGb << 30 # in GB
+
+
+    def __init__(self, func, reservedMem=None, **kwargs):
+        if reservedMem is None:
+            reservedMem = self._getDefaultReservedMem()
+
         cls = self.__class__
 
         cls.counter += 1
@@ -48,7 +64,7 @@ class UtilAugmCachedMap(UtilObject):
         # See if we are running out of memory
         if (cls.counter % cls.CheckInterval == 0):
             assert cls.lruList.count() == len(cls.localMapDict)
-            if psutil.virtual_memory().available < (1 << 30): # 1GB
+            if psutil.virtual_memory().available < reservedMem:
                 cls.trimCounter += 1
                 trimCount = cls.lruList.count() // 20
                 oldGlobalMapLen = len(cls.mapDict)

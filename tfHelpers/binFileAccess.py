@@ -199,9 +199,9 @@ class BinFileParRandReader(UtilObject):
         self.currentBuffer = 1 # We start with the "other" buffer so we are never fetching 2 buffers at the same time
         self.buffers[0].fetchFromFile()
 
-    def batch(self):
+    def singleRead(self):
         """
-        :return: batch of numpy ndarrays with teh same dtype and shape as been defined in typeShapeList
+        :return: list numpy ndarrays with the same dtype and shape as been defined in typeShapeList
         """
         currentBuffer = self.buffers[self.currentBuffer]
         otherBuffer = self.buffers[1 - self.currentBuffer]
@@ -216,18 +216,24 @@ class BinFileParRandReader(UtilObject):
         if otherBuffer.empty:
             otherBuffer.fetchFromFile()
 
-        l = []
-        for _ in range(self.batchSize):
-            mem = currentBuffer.read()
-            offset = 0
-            n = []
-            for i, isize in enumerate(self.itemSizes):
-                dtype, shape = self.typeShapeList[i]
-                n.append(np.frombuffer(mem[offset:offset+isize], dtype=dtype).reshape(shape))
-                offset += isize
-            l.append(n)
+        mem = currentBuffer.read()
+        offset = 0
+        n = []
+        for i, isize in enumerate(self.itemSizes):
+            dtype, shape = self.typeShapeList[i]
+            n.append(np.frombuffer(mem[offset:offset + isize], dtype=dtype).reshape(shape))
+            offset += isize
+        return n
 
-        return l
+    def batch(self):
+        """
+        :return: batch of numpy ndarrays with the same dtype and shape as been defined in typeShapeList
+        """
+        lRet = []
+        for _ in range(self.batchSize):
+            lRet.append(self.singleRead())
+
+        return lRet
 
     def sync(self):
         """
