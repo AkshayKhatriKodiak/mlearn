@@ -22,8 +22,7 @@ from shared.pyutils.imageutils import *
 AllowedBinaryMaskExt = [".png", ".bmp"]
 
 class UtilAugmCachedMap(UtilObject):
-    mapDict = {} # Could be set from outside as a multiprocess dictionary (like Manager.dict),
-                # that's why it is a simple dictionary
+    sharedMapDict = {} # Default map dictionary, not multiprocessing
     localMapDict = {} # This guy is not shared between processes, keeps maps that were initiated from
                       # this process
     lruList = UtilSimpleLinkedList()
@@ -47,7 +46,7 @@ class UtilAugmCachedMap(UtilObject):
         return reserveGb << 30 # in GB
 
 
-    def __init__(self, func, reservedMem=None, **kwargs):
+    def __init__(self, func, mapDict=sharedMapDict, reservedMem=None, **kwargs):
         if reservedMem is None:
             reservedMem = self._getDefaultReservedMem()
 
@@ -59,7 +58,7 @@ class UtilAugmCachedMap(UtilObject):
                     'dict size %d local dict size %d' % \
                   (cls.localHitCounter, cls.globalHitCounter,
                    cls.counter - (cls.localHitCounter + cls.globalHitCounter), \
-                  cls.trimCounter, len(cls.mapDict), len(cls.localMapDict)))
+                  cls.trimCounter, len(mapDict), len(cls.localMapDict)))
 
         # See if we are running out of memory
         if (cls.counter % cls.CheckInterval == 0):
@@ -67,7 +66,7 @@ class UtilAugmCachedMap(UtilObject):
             if psutil.virtual_memory().available < reservedMem:
                 cls.trimCounter += 1
                 trimCount = cls.lruList.count() // 20
-                oldGlobalMapLen = len(cls.mapDict)
+                oldGlobalMapLen = len(mapDict)
                 for _ in range(trimCount): # Removing 5% of the lru list
                     obj = cls.lruList.head
                     assert cls.localMapDict[obj.key] == obj
@@ -75,12 +74,12 @@ class UtilAugmCachedMap(UtilObject):
                     del cls.localMapDict[obj.key]
                     try:
                         # Might have already been removed
-                        del cls.mapDict[obj.key]
+                        del mapDict[obj.key]
                     except KeyError:
                         pass
                 if cls.debug:
                     print('Trimmed %d entries Global map %d -> %d (reduced by %d) glob mem %u' %
-                          (trimCount, oldGlobalMapLen, len(cls.mapDict), oldGlobalMapLen - len(cls.mapDict),
+                          (trimCount, oldGlobalMapLen, len(mapDict), oldGlobalMapLen - len(mapDict),
                            psutil.virtual_memory().available))
 
         key = (func.__name__,) + tuple(kwargs.values())
@@ -91,9 +90,9 @@ class UtilAugmCachedMap(UtilObject):
             obj = cls.localMapDict[key]
             cls.lruList.dequeue(obj)
             cls.lruList.append(obj)
-        elif key in cls.mapDict:
+        elif key in mapDict:
             try:
-                obj = cls.mapDict[key]
+                obj = mapDict[key]
                 cls.globalHitCounter += 1
             except KeyError:
                 pass
@@ -106,7 +105,7 @@ class UtilAugmCachedMap(UtilObject):
         self.map = func(**kwargs)
         self.reverseMap = UtilAugmReverseMapping(self.map)
         self.key = key
-        cls.mapDict[key] = self
+        mapDict[key] = self
         cls.localMapDict[key] = self
         cls.lruList.append(self)
 
