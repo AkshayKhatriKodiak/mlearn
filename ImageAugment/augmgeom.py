@@ -43,6 +43,8 @@ class UtilAugmCachedMap(UtilObject):
         reserveGb = os.environ.get('AUGMGEOM_CACHED_MAP_RESERVE_GB')
         if reserveGb is None:
             reserveGb = 1
+        else:
+            reserveGb = int(reserveGb)
         return reserveGb << 30 # in GB
 
 
