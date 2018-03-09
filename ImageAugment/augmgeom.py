@@ -26,7 +26,8 @@ class UtilAugmCachedMap(UtilObject):
     localMapDict = {} # This guy is not shared between processes, keeps maps that were initiated from
                       # this process
     lruList = UtilSimpleLinkedList()
-    CheckInterval = 50
+    MaxCheckInterval = 50
+    checkInterval = MaxCheckInterval
     debug = False
     counter = 0
     localHitCounter = 0
@@ -63,11 +64,17 @@ class UtilAugmCachedMap(UtilObject):
                   cls.trimCounter, len(mapDict), len(cls.localMapDict)))
 
         # See if we are running out of memory
-        if (cls.counter % cls.CheckInterval == 0):
+        if (cls.counter % cls.checkInterval == 0):
             assert cls.lruList.count() == len(cls.localMapDict)
-            if psutil.virtual_memory().available < reservedMem:
+            availMem = psutil.virtual_memory().available
+            if availMem < reservedMem:
+                # Adjust check interval
+                cls.checkInterval = max (1, cls.MaxCheckInterval * availMem // reservedMem)
                 cls.trimCounter += 1
                 trimCount = cls.lruList.count() // 20
+                if cls.debug:
+                    print('UtilAugmCachedMap trim %d: availMem %d GB trimCount %d checkInterval %d' %
+                          (cls.trimCounter, availMem >> 30, trimCount, cls.checkInterval))
                 oldGlobalMapLen = len(mapDict)
                 for _ in range(trimCount): # Removing 5% of the lru list
                     obj = cls.lruList.head
