@@ -141,3 +141,17 @@ def UtilAugmColorReplacement(img, colorStr):
     seq = [d[c] for c in colorStr]
     return np.stack([img[:,:,i] for i in seq], axis=2)
 
+def UtilAugmScaleSaturation(img, scale):
+    """
+    Change saturation at the specified scale
+    :param img: original image
+    :param scale: Saturation scale, 1.0 means no change
+    :return:
+    """
+    img = cv2.cvtColor(UtilImageToInt(img), cv2.COLOR_RGB2HLS)
+    scaleMat = np.array([1., 1., scale], dtype=np.float)
+    img = img.astype(np.float)
+    img *= scaleMat
+    img = UtilImageHLSToInt(img)
+    return cv2.cvtColor(img, cv2.COLOR_HLS2RGB).astype(np.float32)
+
