@@ -44,14 +44,14 @@ class ImageClassifKerasResnet:
 
   # Dictionaries map file name to a class id
   def __init__(self, trainFilesDict, validFilesDict, classCount, imgHeight, imgWidth, clrMeans, clrStds, augmenter,
-               batchSize, architectureName):
+               batchSize):
     # Calculates weights for each class in teh raining set
     counts = [0] * classCount
     for cl in trainFilesDict.values():
       counts[cl] += 1
     classWeights = []
     for count in counts:
-      classWeights.append(1. / (count * classrCount))
+      classWeights.append(1. / (count * classCount))
 
     self.classWeights_ = classWeights
     self.trainFilesDict_ = trainFilesDict
@@ -68,7 +68,7 @@ class ImageClassifKerasResnet:
     self.augmenter_ = augmenter
     self.batchSize_ = batchSize
 
-  def modelInit(self, modelName=None, learningRate=None):
+  def modelInit(self, modelName=None, learningRate=None, architectureName='build_resnet_18'):
     if modelName is None:
       # Creating model from scratch
       assert learningRate is not None
@@ -84,7 +84,7 @@ class ImageClassifKerasResnet:
       self.model_ = keras.models.load_model(modelName)
       if learningRate is not None:
         # Overwrite learning rate
-        K.set_value(model.optimizer.lr, learningRate)
+        K.set_value(self.model_.optimizer.lr, learningRate)
 
   def modelSave(self, modelName):
     keras.models.save_model(self.model_, modelName)
@@ -100,7 +100,7 @@ class ImageClassifKerasResnet:
       return (img, self.trainFilesDict_[fileName])
 
     mthreadTraining = UtilMultithreadQueue(None, _trainCback,
-      maxQueueSize=self.batchSizde_ * TrainingBatchCount)
+      maxQueueSize=self.batchSize_ * TrainingBatchCount)
     for round in range(rounds):
       print('TRAINING ROUND %d' % round)
       images = []
@@ -137,7 +137,7 @@ class ImageClassifKerasResnet:
       fileName = self.validFilesList_[ind]
       img = UtilImageFileToArray(fileName)
       img = (img - self.clrMeans_) / self.clrStds_
-      return (img, fileName, self.trainFilesDict_[fileName])
+      return (img, fileName, self.validFilesDict_[fileName])
 
     validationTuples = []
     mthreadValidation = UtilMultithreadQueue([0], _valid_cback)
@@ -150,7 +150,7 @@ class ImageClassifKerasResnet:
     errorFileList = []
     for ind, pr in enumerate(predictions):
       a = np.argmax(pr)
-      if a != labels[ind]:
+      if a != validationTuples[ind][2]:
         errorFileList.append(validationTuples[ind][1])
 
     mthreadValidation.terminate()
