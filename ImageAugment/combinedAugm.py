@@ -69,7 +69,8 @@ class CombinedImageAugmentation(UtilObject):
         with open(pklFile, 'rb') as fin:
           self.lfNoiseMats_ = dill.load(fin)
         if (self.lfNoiseMats_[0].shape[0] == self.height_) and \
-          (self.lfNoiseMats_[0].shape[1] == self.width_):
+          (self.lfNoiseMats_[0].shape[1] == self.width_) and \
+          (len(self.lfNoiseMats_) == cachedCount):
           return
         else:
           print('LFNoise size mismatch')
