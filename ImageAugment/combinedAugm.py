@@ -26,7 +26,8 @@ from mlearn.ImageAugment.augmcolor import *
 class CombinedImageAugmentation(UtilObject):
 
   def __init__(self, height, width,
-               flipProb=0.5, blurProb=0.25, sharpProb=0.25, noiseProb=0.5, lfNoiseProb=0.5, saturProb=0.5):
+               flipProb=0.5, squeezeProb=0.3, blurProb=0.25, sharpProb=0.25, noiseProb=0.5,
+               lfNoiseProb=0.5, saturProb=0.5):
 
     self.height_ = height
     self.width_ = width
@@ -35,11 +36,19 @@ class CombinedImageAugmentation(UtilObject):
     sharpProb /= (1. - blurProb) # Sharpen is checked after blur
 
     self.flipProb_ = flipProb
+    self.squeezeProb_ = squeezeProb
     self.blurProb_ = blurProb
     self.sharpProb_ = sharpProb
     self.noiseProb_ = noiseProb
     self.lfNoiseProb_ = lfNoiseProb
     self.saturProb_ = saturProb
+
+  def setSqueeze(self, maxRatio, horProb=0.5, mode='reflect', **kwargs):
+    self.squeezeHorProb_ = horProb
+    assert maxRatio > 1.
+    self.squeezeMaxRatio_ = maxRatio
+    self.squeezeMode_ = mode
+    self.squeezeKwargs_ = kwargs
 
   def setBlur(self, blurSigmaMax):
     self.blurSigmaMax_ = blurSigmaMax
@@ -87,6 +96,18 @@ class CombinedImageAugmentation(UtilObject):
   def satScale(self):
     return np.random.random() * (self.scaleMax_ - self.scaleMin_) + self.scaleMin_
 
+  def squeeze(self, img, newHeight, newWidth):
+    height = img.shape[0]
+    width = img.shape[1]
+    img = UtilImageResize(img, newHeight, newWidth)
+    heightDiff = height - newHeight
+    widthDiff = width - newWidth
+    vertPad = np.random.randint(low=0, high=heightDiff + 1)
+    horPad = np.random.randint(low=0, high=widthDiff + 1)
+    img = np.pad(img, ((vertPad, heightDiff - vertPad), (horPad, widthDiff - horPad), (0,0)),
+                 mode=self.squeezeMode_, **self.squeezeKwargs_)
+    return img
+
   def augment(self, img, retDesc=None):
     channels = img.shape[2]
     height = img.shape[0]
@@ -103,6 +124,19 @@ class CombinedImageAugmentation(UtilObject):
     if np.random.random() < self.flipProb_:
       desc.append('f')
       img = np.flip(img, axis=1)
+
+    # Squeezing
+    if np.random.random() < self.squeezeProb_:
+      ratio = 1. + np.random.random() * (self.squeezeMaxRatio_ - 1.)
+      if np.random.random() < self.squeezeHorProb_:
+        newWidth = int(width / ratio)
+        newHeight = height
+        desc.append('sqh' + _toStr(ratio))
+      else:
+        newHeight = int(height / ratio)
+        newWidth = width
+        desc.append('sqv' + _toStr(ratio))
+      img = self.squeeze(img, newHeight, newWidth)
 
     # Bluring, sharping
     do_blur, do_sharp = (False, False)
@@ -162,6 +196,7 @@ if __name__ == "__main__":
   outputDir = "/Users/morel/temp/augm/" # Put real directory here
 
   cia = CombinedImageAugmentation(height=1500, width=2000)
+  cia.setSqueeze(maxRatio=1.5)
   cia.setBlur(blurSigmaMax=1.5)
   cia.setSharp(edgeAmpMax=1.0)
   cia.setNoise(noiseAmpMax=0.12)
