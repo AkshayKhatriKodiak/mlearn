@@ -44,7 +44,7 @@ class ImageClassifKerasResnet:
 
   # Dictionaries map file name to a class id
   def __init__(self, trainFilesDict, validFilesDict, classCount, imgHeight, imgWidth, clrMeans, clrStds, augmenter,
-               batchSize):
+               batchSize, bestModelName=None):
     # Calculates weights for each class in teh raining set
     counts = [0] * classCount
     for cl in trainFilesDict.values():
@@ -67,6 +67,8 @@ class ImageClassifKerasResnet:
     self.clrStds_ = clrStds
     self.augmenter_ = augmenter
     self.batchSize_ = batchSize
+    self.bestModelName_ = bestModelName
+    self.bestAccuracy_ = 1.0
 
   def modelInit(self, modelName=None, learningRate=None, architectureName='build_resnet_18'):
     if modelName is None:
@@ -82,9 +84,12 @@ class ImageClassifKerasResnet:
     else:
       # Loading model from file
       self.model_ = keras.models.load_model(modelName)
-      if learningRate is not None:
-        # Overwrite learning rate
-        K.set_value(self.model_.optimizer.lr, learningRate)
+      if learningRate is None:
+        learningRate = K.get_value(self.model_.optimizer.lr)
+
+    self.learningRate_ = learningRate
+    self.learningRateScale_ = None
+
 
   def modelSave(self, modelName):
     keras.models.save_model(self.model_, modelName)
@@ -101,6 +106,10 @@ class ImageClassifKerasResnet:
       img = self.augmenter_.augment(img)
       img = (img - self.clrMeans_) / self.clrStds_
       return (img, self.trainFilesDict_[fileName])
+
+    # Overwrite learning rate
+    print('Setting learning rate %f' % self.learningRate_)
+    K.set_value(self.model_.optimizer.lr, self.learningRate_)
 
     mthreadTraining = UtilMultithreadQueue(None, _trainCback,
       maxQueueSize=self.batchSize_ * TrainingBatchCount)
@@ -157,5 +166,19 @@ class ImageClassifKerasResnet:
         errorFileList.append(validationTuples[ind][1])
 
     mthreadValidation.terminate()
+
+    accuracy = len(errorFileList) / len(self.validFilesDict_)
+    # Scal the learning rate
+    if self.learningRateScale_ is not None:
+      self.learningRate_ = self.learningRateScale_ * accuracy
+    else:
+      self.learningRateScale_ = self.learningRate_ / accuracy
+
+    if accuracy < self.bestAccuracy_:
+      self.bestAccuracy_ = accuracy
+      print('Best accuracy %f' % self.bestAccuracy_)
+      if self.bestModelName_ is not None:
+        self.modelSave(self.bestModelName_)
+        print('Model saved in %s' % self.bestModelName_)
     return errorFileList
 
