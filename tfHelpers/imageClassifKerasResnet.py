@@ -89,6 +89,9 @@ class ImageClassifKerasResnet:
   def modelSave(self, modelName):
     keras.models.save_model(self.model_, modelName)
 
+  def summary(self):
+    return self.model_.summary()
+
   def train(self, rounds):
     def _trainCback(state, lock):
       fileName = np.random.choice(self.trainFilesList_,
