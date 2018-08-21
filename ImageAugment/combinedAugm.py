@@ -43,7 +43,7 @@ class CombinedImageAugmentation(UtilObject):
     self.lfNoiseProb_ = lfNoiseProb
     self.saturProb_ = saturProb
 
-  def setSqueeze(self, maxRatio, horProb=0.5, mode='reflect', **kwargs):
+  def setSqueeze(self, maxRatio, horProb=0.5, uuuumode='reflect', **kwargs):
     self.squeezeHorProb_ = horProb
     assert maxRatio > 1.
     self.squeezeMaxRatio_ = maxRatio
@@ -109,7 +109,13 @@ class CombinedImageAugmentation(UtilObject):
                  mode=self.squeezeMode_, **self.squeezeKwargs_)
     return img
 
-  def augment(self, img, retDesc=None):
+  def augment(self, img, points=None, retDesc=None):
+    """
+    :param img:
+    :param points: list (so we can return it) containing Numpy array [[y0,x0], [y1,x1], ...], or None
+    :param retDesc: None or empty list which will contain teh string descriptor on return
+    :return:
+    """
     channels = img.shape[2]
     height = img.shape[0]
     width = img.shape[1]
@@ -125,9 +131,15 @@ class CombinedImageAugmentation(UtilObject):
     if np.random.random() < self.flipProb_:
       desc.append('f')
       img = np.flip(img, axis=1)
+      if points is not None:
+        points_arr = points[0]
+        # Should be changed in place
+        points_arr[:, 1] = width - points_arr[:, 1]
 
     # Squeezing
+    # TODO: add handling of points
     if np.random.random() < self.squeezeProb_:
+      # We calculate squeze from both sides, independently
       ratio = 1. + np.random.random() * (self.squeezeMaxRatio_ - 1.)
       if np.random.random() < self.squeezeHorProb_:
         newWidth = int(width / ratio)
