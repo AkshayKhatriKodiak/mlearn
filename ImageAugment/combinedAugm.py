@@ -43,7 +43,7 @@ class CombinedImageAugmentation(UtilObject):
     self.lfNoiseProb_ = lfNoiseProb
     self.saturProb_ = saturProb
 
-  def setSqueeze(self, maxRatio, horProb=0.5, uuuumode='reflect', **kwargs):
+  def setSqueeze(self, maxRatio, horProb=0.5, mode='reflect', **kwargs):
     self.squeezeHorProb_ = horProb
     assert maxRatio > 1.
     self.squeezeMaxRatio_ = maxRatio
@@ -97,16 +97,25 @@ class CombinedImageAugmentation(UtilObject):
   def satScale(self):
     return np.random.random() * (self.scaleMax_ - self.scaleMin_) + self.scaleMin_
 
-  def squeeze(self, img, newHeight, newWidth):
+  def squeeze(self, img, marginUpper, marginLeft, marginLower, marginRight, points):
     height = img.shape[0]
     width = img.shape[1]
+    newHeight = height - marginUpper - marginLower
+    assert newHeight > 0
+    newWidth = width - marginLeft - marginRight
+    assert newWidth > 0
+
     img = UtilImageResize(img, newHeight, newWidth)
-    heightDiff = height - newHeight
-    widthDiff = width - newWidth
-    vertPad = np.random.randint(low=0, high=heightDiff + 1)
-    horPad = np.random.randint(low=0, high=widthDiff + 1)
-    img = np.pad(img, ((vertPad, heightDiff - vertPad), (horPad, widthDiff - horPad), (0,0)),
-                 mode=self.squeezeMode_, **self.squeezeKwargs_)
+    img = np.pad(img, ((marginUpper, marginLower), (marginLeft, marginRight), (0,0)),
+      mode=self.squeezeMode_, **self.squeezeKwargs_)
+
+    # Recalculate points
+    if points is not None:
+      points_arr = points[0]
+      # Should be changed in place
+      points_arr[:, 0] = marginUpper + points_arr[:, 0] * newHeight / height
+      points_arr[:, 1] = marginLeft + points_arr[:, 1] * newWidth / width
+
     return img
 
   def augment(self, img, points=None, retDesc=None):
@@ -122,6 +131,9 @@ class CombinedImageAugmentation(UtilObject):
     assert height <= self.height_
     assert width <= self.width_
 
+    if points is not None:
+      points_arr = points[0]
+
     desc = []
 
     def _toStr(f):
@@ -132,24 +144,44 @@ class CombinedImageAugmentation(UtilObject):
       desc.append('f')
       img = np.flip(img, axis=1)
       if points is not None:
-        points_arr = points[0]
         # Should be changed in place
         points_arr[:, 1] = width - points_arr[:, 1]
 
     # Squeezing
-    # TODO: add handling of points
     if np.random.random() < self.squeezeProb_:
-      # We calculate squeze from both sides, independently
-      ratio = 1. + np.random.random() * (self.squeezeMaxRatio_ - 1.)
+      # We calculate squeze from both edges
+      squeezePortion = np.random.random() * (self.squeezeMaxRatio_ - 1.)
+      squeezeRatio = 1. + squeezePortion
+      squeezePortion1 = np.random.random() * squeezePortion
+      squeezePortion2 = squeezePortion - squeezePortion1
+
+      def _squeezeLimits(limit1, limit2, isHor):
+        if points is not None:
+          ind = 1 if isHor else 0
+          size = width if isHor else height
+          lim1 = np.min(points_arr[:, ind]) / size / squeezeRatio
+          lim2 = max((1. - np.max(points_arr[:, ind]) / \
+            size) / squeezeRatio, 0.)
+        else:
+          # Unlimited squeeze on both edges`
+          lim1 = 1.
+          lim2 = 1.
+        return (min(limit1, lim1), min(limit2, lim2))
+
+      marginLeft = marginRight = marginUpper = marginLower = 0
       if np.random.random() < self.squeezeHorProb_:
-        newWidth = int(width / ratio)
-        newHeight = height
-        desc.append('sqh' + _toStr(ratio))
+        squeezePortionLeft, squeezePortionRight =\
+          _squeezeLimits(squeezePortion1, squeezePortion2, isHor=True)
+        marginLeft = int(width * squeezePortionLeft)
+        marginRight = int(width * squeezePortionRight)
+        desc.append('sqh' + str(marginLeft) + '_' + str(marginRight))
       else:
-        newHeight = int(height / ratio)
-        newWidth = width
-        desc.append('sqv' + _toStr(ratio))
-      img = self.squeeze(img, newHeight, newWidth)
+        squeezePortionUpper, squeezePortionLower = \
+          _squeezeLimits(squeezePortion1, squeezePortion2, isHor=False)
+        marginUpper = int(height * squeezePortionUpper)
+        marginLower = int(height * squeezePortionLower)
+        desc.append('sqv' + str(marginUpper) + '_' + str(marginLower))
+      img = self.squeeze(img, marginUpper, marginLeft, marginLower, marginRight, points)
 
     # Bluring, sharping
     do_blur, do_sharp = (False, False)
