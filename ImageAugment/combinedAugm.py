@@ -229,7 +229,7 @@ class CombinedImageAugmentation(UtilObject):
       img += lfnMat
 
     if retDesc is not None:
-      retDesc.append('_'.join(desc))
+      retDesc[0] = '_'.join(desc)
 
     return img
 
