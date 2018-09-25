@@ -106,7 +106,8 @@ class CustomLogger(keras.callbacks.Callback):
 
   def on_epoch_end(self, epoch, logs=None):
     print("Epoch %d done, logs %s" % (epoch, str(logs)))
-    self.classif_.logCallback(epoch, logs[self.logMetrics_])
+    self.classif_.logCallback(epoch, metrics=logs[self.logMetrics_],
+      valMetrics=logs["val_" + self.logMetrics_])
 
 
 
@@ -137,15 +138,15 @@ class ImageClassifKerasResnet:
       if self.buildRegressor_:
         lossFunc = mean_absolute_error
         self.metrics_ = "mae"
-        logMetrics = "val_mean_absolute_error"
+        logMetrics = "mean_absolute_error"
         self.comparison_ = _less
-        self.bestValidLoss_ = float("inf")
+        self.bestValidMetrics_ = float("inf")
       else:
         lossFunc = categorical_crossentropy
         self.metrics_ = "acc"
-        logMetrics = "val_acc"
+        logMetrics = "acc"
         self.comparison_ = _greater
-        self.bestValidLoss_ = float("-inf")
+        self.bestValidMetrics_ = float("-inf")
     self.lossFunc_ = lossFunc
     self.customLogger_ = CustomLogger(self, logMetrics)
 
@@ -241,16 +242,17 @@ class ImageClassifKerasResnet:
     self.model_.save_weights(modelName)
     return modelName
 
-  def logCallback(self, epoch, valLoss):
-    saveDict = { "metrics" : valLoss }
+  def logCallback(self, epoch, metrics, valMetrics):
+ 
+    saveDict = { "met" : metrics, "valmet" : valMetrics }
 
     if time.time() - self.lastLog_ > LogIntervalInSeconds:
       self.lastLog_ = time.time()
       if self.saveModelPrefix_ is not None:
         self.saveModel(self.saveModelPrefix_, epoch, saveDict)
 
-    if self.comparison_(valLoss, self.bestValidLoss_):
-      self.bestValidLoss_ = valLoss
+    if self.comparison_(valMetrics, self.bestValidMetrics_):
+      self.bestValidMetrics_ = valMetrics
       if self.bestModelPrefix_ is not None:
         bestModelName = self.saveModel(
           self.bestModelPrefix_, epoch, saveDict)
