@@ -64,3 +64,16 @@ def UtilDisplayAccuracyLoss(accuracy, loss, averaging=None):
 
     plt.plot(range(loss.shape[0]), loss, 'gs', range(accuracy.shape[0]), accuracy, 'ro')
     plt.show()
+
+
+def TfPrint(tensor, *args, message="", summarize=None, output_stream=sys.stderr):
+    kwargs = {"output_stream": output_stream}
+    if summarize is not None:
+        kwargs["summarize"] = summarize
+    print_op = tf.print(*(("\n" + message,) + args), ** kwargs)
+
+    # Create dummy dependency on print_op
+    with tf.control_dependencies([print_op]):
+        tensor = tf.expand_dims(tensor, axis=0)
+    tensor = tf.squeeze(tensor, axis=[0])
+    return tensor
