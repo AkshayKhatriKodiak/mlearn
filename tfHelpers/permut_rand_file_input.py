@@ -32,31 +32,41 @@ class PermutRandFileInput:
         """
 
         self.file_dict_ = {}
+        self.file_index_dict_ = {}
         line_count = 0
         for ind, fn in enumerate(txt_file_list):
             with open(fn, "r") as fin:
-                lines = np.array(fin.readlines())
+                lines = np.array(fin.read().splitlines())
             select_count = int(len(lines) * proportions_list[ind])
             line_count += select_count
             self.file_dict_[fn] = (lines, select_count)
+            self.file_index_dict_[fn] = ind
         self.line_count_ = line_count
 
     def line_count(self):
         return self.line_count_
 
     def get_permuted(self):
-        array_list = []
-        for lines, select_count in self.file_dict_.values():
+        lines_list = []
+        file_indices_list = []
+        for fn, (lines, select_count) in self.file_dict_.items():
             length = len(lines)
-            array_list += ([lines] * (select_count // length))
-            array_list.append(np.random.choice(lines, size=(select_count % length), replace=False))
-        total_lines = np.concatenate(array_list)
-        np.random.shuffle(total_lines)
-        return total_lines
+            full_counts = select_count // length
+            while full_counts:
+                full_counts -= 1
+                lines_list.append(lines)
+            lines_list.append(np.random.choice(lines, size=(select_count % length), replace=False))
+            file_indices_list += [self.file_index_dict_[fn]] * select_count
+        np_lines = np.concatenate(lines_list)
+        np_file_indices = np.array(file_indices_list)
+        shuffle_index = np.arange(len(file_indices_list))
+        np.random.shuffle(shuffle_index)
+        return np_lines[shuffle_index], np_file_indices[shuffle_index]
 
 
 if __name__ == "__main__":
     # test
     prfi = PermutRandFileInput(["test1.txt", "test2.txt"],
                                [0.6, 2.4])
-    print("LINES:\n %s" % str(prfi.get_permuted())) 
+    lines, file_indices = prfi.get_permuted() 
+    print("LINES:\n %s\nFILE INDICES:\n%s" % (str(lines), str(file_indices))) 
