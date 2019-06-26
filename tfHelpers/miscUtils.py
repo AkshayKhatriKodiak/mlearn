@@ -19,6 +19,7 @@
 from shared.pyutils.imageutils import *
 from shared.pyutils.tensorutils import *
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
 
 def UtilTimeSeqRandomSelect(len, minSelect, count):
