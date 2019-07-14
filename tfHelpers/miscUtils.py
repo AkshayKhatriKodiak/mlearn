@@ -75,6 +75,5 @@ def TfPrint(tensor, *args, message="", summarize=None, output_stream=sys.stderr)
 
     # Create dummy dependency on print_op
     with tf.control_dependencies([print_op]):
-        tensor = tf.expand_dims(tensor, axis=0)
-    tensor = tf.squeeze(tensor, axis=[0])
+        tensor = tf.identity(tensor, name="TfPrint_dummy")
     return tensor
