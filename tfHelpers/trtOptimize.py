@@ -21,7 +21,7 @@
 # Import the needed libraries
 import cv2
 import time
-import arggparse
+import argparse
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.tensorrt as trt
